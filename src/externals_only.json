@@ -1,0 +1,52 @@
+{
+    "projects": [
+        {
+            "name": "zlib",
+            "path": "te-external/zlib/"
+        },
+        {
+            "name": "freetype",
+            "path": "te-external/freetype/"
+        },
+        {
+            "name": "libffi",
+            "path": "te-external/libffi/"
+        },
+        {
+            "name": "libiconv",
+            "path": "te-external/libiconv/"
+        },
+        {
+            "name": "libxml2",
+            "path": "te-external/libxml2/"
+        },
+        {
+            "name": "icu",
+            "path": "te-external/icu/"
+        },
+        {
+            "name": "fontconfig",
+            "path": "te-external/fontconfig/"
+        },
+        {
+            "name": "glib",
+            "path": "te-external/glib/"
+        },
+        {
+            "name": "harfbuzz",
+            "path": "te-external/harfbuzz/"
+        },
+        {
+            "name": "pixman",
+            "path": "te-external/pixman/"
+        },
+        {
+            "name": "cairo",
+            "path": "te-external/cairo/"
+        },
+        {
+            "name": "pango",
+            "path": "te-external/pango/"
+        }
+    ]
+}
