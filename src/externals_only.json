@@ -5,6 +5,22 @@
             "path": "te-external/zlib/"
         },
         {
+            "name": "libtiff",
+            "path": "te-external/libtiff/"
+        },
+        {
+            "name": "libpng",
+            "path": "te-external/libpng/"
+        },
+        {
+            "name": "jpeg",
+            "path": "te-external/jpeg/"
+        },
+        {
+            "name": "giflib",
+            "path": "te-external/giflib/"
+        },
+        {
             "name": "freetype",
             "path": "te-external/freetype/"
         },
