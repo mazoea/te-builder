@@ -204,15 +204,15 @@ def build_run(env, project_name, project_dir, configuration, build_dict, paralle
         _logger.info("\n".join(stdout_lines[-15:]))
         if len(stderr or "") > 0:
             _logger.critical(stderr)
-        p = re.compile("(\d+) Error\(s\)")
+        p = re.compile(r"(\d+) Error\(s\)")
         for line in stdout_lines[-15:]:
             m = p.search(line)
             if m:
                 if 0 < int(m.group(1)):
-                    return line + 10 * "!"
+                    return ret, line + 10 * "!"
                 else:
-                    return line
-        return None
+                    return ret, line
+        return ret, None
 
     builder = env["builder"]
     project_sln_dir = os.path.join(
@@ -228,12 +228,13 @@ def build_run(env, project_name, project_dir, configuration, build_dict, paralle
         project_name, configuration.replace("|", "-"))
     logfile = os.path.join(env["log_dir"], log_file_name)
 
-    ret_line = _build()
+    ret, ret_line = _build()
     for i in range(build_dict.get("try", 0)):
-        ret_line = _build("build")
+        ret1, ret_line = _build("build")
+        ret += ret1
 
     _logger.info(20 * "-" + "\n\n")
-    return "%15s : %20s : %15s" % (project_name, configuration, ret_line)
+    return ret, "%15s : %20s : %15s" % (project_name, configuration, ret_line)
 
 
 # ======================================================
@@ -331,6 +332,7 @@ if __name__ == "__main__":
     # for all configurations execute run
     s = time.time()
     build_status = []
+    ret = 0
     for configuration, build_dict, project_dir, changed in foreach(env):
         project_name = build_dict["name"]
         project_dir = os.path.join(env["projects_top_dir"], build_dict["path"])
@@ -339,8 +341,10 @@ if __name__ == "__main__":
 
         _logger.info("\tworking on [%s]", configuration)
         parallel = get_bs(env, build_dict, "parallel")
-        status = build_run(env, project_name, project_dir,
-                           configuration, build_dict, parallel)
+        ret1, status = build_run(
+            env, project_name, project_dir, configuration, build_dict, parallel
+        )
+        ret += ret1
         build_status.append(status)
         # copy result libraries - should be here as some are deleted during the
         # compilation?!
@@ -353,3 +357,4 @@ if __name__ == "__main__":
     for status in build_status:
         _logger.info(status)
     _logger.info("Finished in [%ss]", time.time() - s)
+    sys.exit(ret)
