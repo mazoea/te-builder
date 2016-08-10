@@ -186,26 +186,29 @@ def get_bs(env, build_dict, key):
 # build run
 # ======================================================
 
-def build_run(env, project_name, project_dir, configuration, build_dict, parallel=1):
+def build_run(env, project_name, project_dir, configuration, build_dict, parallel=1, lines_to_show=15):
     """
         vcrun.bat g:\textextractor\projects\te-external\zlib\projects\project.vc2010.sln /Rebuild "Debug-MT|Win32" /OUT "DEBUG-MT.log"
     """
     conf, platform = configuration.split("|")
 
     def _build(command="rebuild"):
+        to_show = lines_to_show
         cmd = "%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo" % (
             builder, sln_file, command, conf, platform, parallel, logfile
         )
         _logger.info("Executing \n%s", "\n\t".join(cmd.split()))
         ret, stdout, stderr, took = run({}, cmd, _logger)
+        if 0 != ret:
+            to_show *= 10
         _logger.info("Took [%s], ret code [%d]", took, ret)
         stdout_lines = stdout.splitlines()
         _logger.info("\n\n" + 20 * "-")
-        _logger.info("\n".join(stdout_lines[-15:]))
+        _logger.info("\n".join(stdout_lines[-to_show:]))
         if len(stderr or "") > 0:
             _logger.critical(stderr)
         p = re.compile(r"(\d+) Error\(s\)")
-        for line in stdout_lines[-15:]:
+        for line in stdout_lines[-to_show:]:
             m = p.search(line)
             if m:
                 if 0 < int(m.group(1)):
@@ -341,8 +344,9 @@ if __name__ == "__main__":
 
         _logger.info("\tworking on [%s]", configuration)
         parallel = get_bs(env, build_dict, "parallel")
+        lines_to_show = int(env["lines_to_show"])
         ret1, status = build_run(
-            env, project_name, project_dir, configuration, build_dict, parallel
+            env, project_name, project_dir, configuration, build_dict, parallel, lines_to_show
         )
         ret += ret1
         build_status.append(status)

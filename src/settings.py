@@ -22,6 +22,8 @@ settings = {
     "projects_top_dir": os.path.join(this_dir, "..", ".."),
     "builder": os.path.join(this_dir, "vcrun.bat"),
 
+    "lines_to_show": 20,
+
     "configurations": {
         "Debug-MT|Win32",
         "Debug-MT|x64",
