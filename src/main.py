@@ -255,7 +255,8 @@ def cleanup_libs(env, project_dir, build_dict):
                 _logger.info("Deleting [%s]", f)
                 os.remove(f)
             except Exception, e:
-                _logger.critical("Could not remove [%s]", f, repr(e))
+                _logger.critical(
+                    "Could not remove [%s] because of [%s]", f, repr(e))
 
 
 def copy_libs(env, project_dir, build_dict):
