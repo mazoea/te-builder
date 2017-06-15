@@ -186,6 +186,24 @@ def get_bs(env, build_dict, key):
 # build run
 # ======================================================
 
+def validate_configuration(sln_file, configuration):
+    magic = "SolutionConfigurationPlatforms"
+    non_magic = "EndGlobalSection"
+    available_configurations = []
+    start = False
+    for l in open(sln_file, mode="r").readlines():
+        if magic in l:
+            start = True
+            continue
+        if start and non_magic in l:
+            break
+        if start:
+            available_configurations.append(l.split("=")[1].strip())
+    return configuration in available_configurations
+
+
+
+
 def build_run(env, project_name, project_dir, configuration, build_dict, parallel=1, lines_to_show=15):
     """
         vcrun.bat g:\textextractor\projects\te-external\zlib\projects\project.vc2010.sln /Rebuild "Debug-MT|Win32" /OUT "DEBUG-MT.log"
@@ -224,8 +242,15 @@ def build_run(env, project_name, project_dir, configuration, build_dict, paralle
     sln_files = glob.glob(
         os.path.join(project_sln_dir, get_bs(env, build_dict, "solution"))
     )
+    if len(sln_files) > 1:
+        sln_files = [x for x in sln_files if x.endswith("project.sln")]
     assert 1 == len(sln_files)
     sln_file = sln_files[0]
+
+    # find out available configurations
+    ok = validate_configuration(sln_file, configuration)
+    if not ok:
+        return 0, "%15s : %20s : %15s" % (project_name, configuration, "CONFIGURATION NOT FOUND")
 
     log_file_name = "%s.%s.log" % (
         project_name, configuration.replace("|", "-"))
@@ -306,8 +331,10 @@ def parse_command_line(env):
         _logger.info(u"Invalid arguments [%s]", e)
         sys.exit(1)
 
+    found= False
     for option, param in opts:
         if option == "--settings":
+            found = True
             _logger.info("Using [%s] settings", param)
             if os.path.exists(param):
                 input_settings = json.load(
@@ -317,7 +344,7 @@ def parse_command_line(env):
                 k, v = param.split("=")
                 env[k] = v
             continue
-    return env
+    return env, found
 
 
 if __name__ == "__main__":
@@ -327,7 +354,17 @@ if __name__ == "__main__":
     except:
         pass
 
-    env = parse_command_line(settings)
+    env, found = parse_command_line(settings)
+    if not found:
+        available_settings = glob.glob("*.json")
+        _logger.info("\n".join(
+            ["%2d. %s" % (i, x) for i, x in enumerate(available_settings)])
+        )
+        idx = raw_input("Select configuration> ")
+        build_settings = available_settings[int(idx)]
+        build_settings = json.load(
+            open(build_settings, mode="r"), encoding="utf-8")
+        extend_dict(env, build_settings)
 
     # for all configurations execute run
     for configuration, build_dict, project_dir, _1 in foreach(env):

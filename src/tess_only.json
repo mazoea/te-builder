@@ -1,0 +1,9 @@
+{
+    "projects": [
+        {
+            "name": "tesseract",
+            "path": "te-external-tesseract/tesseract/",
+            "try": 3
+        }
+    ]
+}

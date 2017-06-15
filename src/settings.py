@@ -25,15 +25,18 @@ settings = {
     "lines_to_show": 20,
 
     "configurations": {
-        "Debug-MT|Win32",
+        #"Debug-MT|Win32",
         "Debug-MT|x64",
-        "Release-MT|Win32",
+        #"Release-MT|Win32",
         "Release-MT|x64",
 
-        "Debug-MTDLL|Win32",
-        "Debug-MTDLL|x64",
-        "Release-MTDLL|Win32",
-        "Release-MTDLL|x64",
+        "Release|x64",
+        "RelWithDebInfo|x64",
+
+        #"Debug-MTDLL|Win32",
+        #"Debug-MTDLL|x64",
+        #"Release-MTDLL|Win32",
+        #"Release-MTDLL|x64",
     },
 
     "project_defaults": {
