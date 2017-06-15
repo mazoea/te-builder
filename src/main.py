@@ -357,7 +357,7 @@ if __name__ == "__main__":
     env, found = parse_command_line(settings)
     if not found:
         available_settings = glob.glob("*.json")
-        _logger.info("\n".join(
+        _logger.info("\n" + "\n".join(
             ["%2d. %s" % (i, x) for i, x in enumerate(available_settings)])
         )
         idx = raw_input("Select configuration> ")
