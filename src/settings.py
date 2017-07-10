@@ -48,6 +48,7 @@ settings = {
         "copy": [
             "projects/output/*.lib",
             "projects/output/*.dll",
+            "projects/output/*.exp",
         ],
         "parallel": 2,
         "cleanup": (
