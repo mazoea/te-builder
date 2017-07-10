@@ -26,17 +26,17 @@ settings = {
 
     "configurations": {
         #"Debug-MT|Win32",
-        "Debug-MT|x64",
+        #"Debug-MT|x64",
         #"Release-MT|Win32",
-        "Release-MT|x64",
+        #"Release-MT|x64",
 
         "Release|x64",
         "RelWithDebInfo|x64",
 
         #"Debug-MTDLL|Win32",
-        #"Debug-MTDLL|x64",
+        "Debug-MTDLL|x64",
         #"Release-MTDLL|Win32",
-        #"Release-MTDLL|x64",
+        "Release-MTDLL|x64",
     },
 
     "project_defaults": {
@@ -54,6 +54,8 @@ settings = {
         "cleanup": (
             "projects/output/*.exe",
             "projects/output/*.lib",
+            "projects/output/*.dll",
+            "projects/output/*.ilk",
             "projects/output/pdb/*.pdb",
             "libs/*.lib",
         ),
