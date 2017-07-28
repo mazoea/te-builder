@@ -96,7 +96,7 @@ def safe_unlink(file_path):
 DEBUG_DRY_RUN = 1
 
 
-def run(env_dict, cmd, logger=None, debug=0):
+def run(env_dict, cmd, logger=None, debug=0, cwd=None):
     """
         Run local process using command line in cmd.
 
@@ -136,11 +136,14 @@ def run(env_dict, cmd, logger=None, debug=0):
         cmd = cmd.encode(locale.getpreferredencoding())
     except:
         pass
-    p = subprocess.Popen(cmd,
-                         shell=True,
-                         stdin=None,
-                         stdout=tempik_stdout,
-                         stderr=tempik_stderr)
+    p = subprocess.Popen(
+        cmd,
+        shell=True,
+        stdin=None,
+        stdout=tempik_stdout,
+        stderr=tempik_stderr,
+        cwd=cwd,
+    )
 
     # wait for the end
     p.communicate()
@@ -202,18 +205,73 @@ def validate_configuration(sln_file, configuration):
     return configuration in available_configurations
 
 
-
-
-def build_run(env, project_name, project_dir, configuration, build_dict, parallel=1, lines_to_show=15):
+def cmake_batch(env, project_dir, build_dict):
     """
-        vcrun.bat g:\textextractor\projects\te-external\zlib\projects\project.vc2010.sln /Rebuild "Debug-MT|Win32" /OUT "DEBUG-MT.log"
+        Return cmake batch file if present
+    """
+    cmaker = os.path.join(
+        project_dir, get_bs(env, build_dict, "cmake_batch"))
+    return cmaker if os.path.exists(cmaker) else None
+
+
+def msvc_solution(env, project_dir, build_dict):
+    """
+        Is an MSVC solution already present?
+    """
+    project_sln_dir = os.path.join(
+        project_dir, get_bs(env, build_dict, "solution_path"))
+    sln_files = glob.glob(
+        os.path.join(project_sln_dir, get_bs(env, build_dict, "solution"))
+    )
+    if len(sln_files) > 1:
+        sln_files = [x for x in sln_files if x.endswith("project.sln")]
+
+    return sln_files[0] if 1 == len(sln_files) else None
+
+
+def cmaker_build_run(env, project_name, cmaker):
+
+    def _build():
+        to_show = lines_to_show
+        cmd = cmaker + " nopause"
+        _logger.info("Executing \n%s", "\n\t".join(cmd.split()))
+        ret, stdout, stderr, took = run({}, cmd, _logger, cwd=os.path.dirname(cmaker))
+        if 0 != ret:
+            to_show *= 10
+        _logger.info("Took [%s], ret code [%d]", took, ret)
+        stdout_lines = stdout.splitlines()
+        _logger.info("\n\n" + 20 * "-")
+        _logger.info("\n".join(stdout_lines[-to_show:]))
+        if len(stderr or "") > 0:
+            _logger.critical(stderr)
+        p = re.compile(r"(\d+) Error\(s\)")
+        for line in stdout_lines[-to_show:]:
+            m = p.search(line)
+            if m:
+                if 0 < int(m.group(1)):
+                    return ret, line + 10 * "!"
+                else:
+                    return ret, line
+        return ret, None
+
+    ret, ret_line = _build()
+    _logger.info(20 * "-" + "\n\n")
+    return ret, "%15s : CMAKER : %15s" % (project_name, ret_line)
+
+
+def msvc_build_run(env, project_name, sln_file, configuration, build_dict, parallel=1, lines_to_show=15):
+    """
+        msvc:
+            ```vcrun.bat g:\textextractor\projects\te-external\zlib\projects\project.vc2010.sln /Rebuild "Debug-MT|Win32" /OUT "DEBUG-MT.log"```
+
     """
     conf, platform = configuration.split("|")
+    msvcbuilder = env["msvc-builder"]
 
     def _build(command="rebuild"):
         to_show = lines_to_show
         cmd = "%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo" % (
-            builder, sln_file, command, conf, platform, parallel, logfile
+            msvcbuilder, sln_file, command, conf, platform, parallel, logfile
         )
         _logger.info("Executing \n%s", "\n\t".join(cmd.split()))
         ret, stdout, stderr, took = run({}, cmd, _logger)
@@ -234,18 +292,6 @@ def build_run(env, project_name, project_dir, configuration, build_dict, paralle
                 else:
                     return ret, line
         return ret, None
-
-    builder = env["builder"]
-    project_sln_dir = os.path.join(
-        project_dir, get_bs(env, build_dict, "solution_path"))
-
-    sln_files = glob.glob(
-        os.path.join(project_sln_dir, get_bs(env, build_dict, "solution"))
-    )
-    if len(sln_files) > 1:
-        sln_files = [x for x in sln_files if x.endswith("project.sln")]
-    assert 1 == len(sln_files)
-    sln_file = sln_files[0]
 
     # find out available configurations
     ok = validate_configuration(sln_file, configuration)
@@ -383,9 +429,17 @@ if __name__ == "__main__":
         _logger.info("\tworking on [%s]", configuration)
         parallel = get_bs(env, build_dict, "parallel")
         lines_to_show = int(env["lines_to_show"])
-        ret1, status = build_run(
-            env, project_name, project_dir, configuration, build_dict, parallel, lines_to_show
-        )
+
+        cmaker = cmake_batch(env, project_dir, build_dict)
+        if cmaker is not None:
+            ret1, status = cmaker_build_run(env, project_name, cmaker)
+        else:
+            sln_file = msvc_solution(env, project_dir, build_dict)
+            assert sln_file is not None
+            ret1, status = msvc_build_run(
+                env, project_name, sln_file, configuration, build_dict, parallel, lines_to_show
+            )
+
         ret += ret1
         build_status.append(status)
         # copy result libraries - should be here as some are deleted during the

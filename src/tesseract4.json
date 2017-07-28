@@ -1,0 +1,12 @@
+{
+    "projects": [
+        {
+            "name": "tesseract",
+            "path": "te-external-tesseract4/",
+            "try": 3
+        }
+    ],
+    "configurations": [
+        "Release|x64"
+    ]
+}

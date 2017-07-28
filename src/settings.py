@@ -14,13 +14,13 @@ settings = {
 
 
     # name
-    "name": u"builder v2.0",
+    "name": u"builder v3.0",
 
     # logs
     "log_dir": os.path.join(this_dir, "..", "_logs"),
 
     "projects_top_dir": os.path.join(this_dir, "..", ".."),
-    "builder": os.path.join(this_dir, "vcrun.bat"),
+    "msvc-builder": os.path.join(this_dir, "vcrun.bat"),
 
     "lines_to_show": 20,
 
@@ -40,6 +40,8 @@ settings = {
     },
 
     "project_defaults": {
+        "cmake_batch": "cmaker.bat",
+
         "solution_path": "projects",
         "solution": "*.sln",
 
@@ -49,6 +51,9 @@ settings = {
             "projects/output/*.lib",
             "projects/output/*.dll",
             "projects/output/*.exp",
+            "bins/*.lib",
+            "bins/*.exe",
+            "bins/*.dll",
         ],
         "parallel": 2,
         "cleanup": (
@@ -58,6 +63,8 @@ settings = {
             "projects/output/*.ilk",
             "projects/output/pdb/*.pdb",
             "libs/*.lib",
+            "bins/*.dll",
+            "bins/*.exe",
         ),
     },
 
