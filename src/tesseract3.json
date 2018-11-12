@@ -2,8 +2,11 @@
     "projects": [
         {
             "name": "tesseract",
-            "path": "te-external-tesseract/tesseract/",
+            "path": "te-external-tesseract/",
             "try": 3
         }
+    ],
+    "configurations": [
+        "Release|x64"
     ]
 }

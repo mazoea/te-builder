@@ -83,7 +83,7 @@ def safe_unlink(file_path):
         try:
             os.unlink(file_path)
             return
-        except Exception, e:
+        except Exception as e:
             sleep(0.1)
             if max_loops == 1:
                 _logger.warning("Could not remove file [%s] [%s]",
@@ -158,7 +158,7 @@ def run(env_dict, cmd, logger=None, debug=0, cwd=None):
             ret[0] = ftemp.read().strip()
         with codecs.open(tempik_stderr.name, "r", "utf-8", errors='replace') as ftemp:
             ret[1] = ftemp.read().strip() or None
-    except Exception, e:
+    except Exception as e:
         _logger.warning("Run problem with [%s][%s][%s]", cmd, ret[0], str(e))
 
     if not exists_key("runners.cleanup", env_dict) or env_dict["runners"]["cleanup"]:
@@ -325,7 +325,7 @@ def cleanup_libs(env, project_dir, build_dict):
             try:
                 _logger.info("Deleting [%s]", f)
                 os.remove(f)
-            except Exception, e:
+            except Exception as e:
                 _logger.critical(
                     "Could not remove [%s] because of [%s]", f, repr(e))
 
@@ -373,7 +373,7 @@ def parse_command_line(env):
         ]
         input_options = sys.argv[1:]
         opts, _ = getopt.getopt(input_options, "", options)
-    except getopt.GetoptError, e:
+    except getopt.GetoptError as e:
         _logger.info(u"Invalid arguments [%s]", e)
         sys.exit(1)
 

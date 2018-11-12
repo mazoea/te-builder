@@ -1,0 +1,16 @@
+{
+    "projects": [
+        {
+            "name": "zlib",
+            "path": "te-external/zlib/"
+        },
+        {
+            "name": "libpng",
+            "path": "te-external/libpng/"
+        },
+        {
+            "name": "freetype",
+            "path": "te-external/freetype/"
+        }
+    ]
+}

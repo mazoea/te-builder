@@ -62,7 +62,10 @@ settings = {
             "projects/output/*.dll",
             "projects/output/*.ilk",
             "projects/output/pdb/*.pdb",
+            
             "libs/*.lib",
+            "libs/*.dll",
+
             "bins/*.dll",
             "bins/*.exe",
         ),
