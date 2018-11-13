@@ -21,6 +21,7 @@ import subprocess
 import locale
 import codecs
 from time import sleep
+python2 = sys.version_info[0] < 3
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s')
@@ -34,6 +35,8 @@ _logger = logging.getLogger()
 # noinspection PyBroadException
 def uni(str_str, encoding="utf-8"):
     """ Try to get unicode without errors """
+    if not python2:
+        return str_str
     try:
         if isinstance(str_str, unicode):
             return str_str
@@ -77,7 +80,7 @@ def safe_unlink(file_path):
 
           On some systems (i.e., Windows) the process can still `somehow` have the file opened.
     """
-    assert isinstance(file_path, basestring)
+    # assert isinstance(file_path, basestring)
     max_loops = 10
     while 0 < max_loops:
         try:
@@ -133,7 +136,8 @@ def run(env_dict, cmd, logger=None, debug=0, cwd=None):
                      tempik_stdout.name,
                      tempik_stderr.name)
     try:
-        cmd = cmd.encode(locale.getpreferredencoding())
+        if python2:
+            cmd = cmd.encode(locale.getpreferredencoding())
     except:
         pass
     p = subprocess.Popen(
@@ -170,7 +174,7 @@ def run(env_dict, cmd, logger=None, debug=0, cwd=None):
 
 def extend_dict(what, with_what):
     """ Extend dicts instead of replace items.  """
-    for k, v in with_what.iteritems():
+    for k, v in with_what.items():
         if k in what and isinstance(what[k], dict):
             extend_dict(what[k], v)
         else:
