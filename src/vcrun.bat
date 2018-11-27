@@ -9,4 +9,4 @@ rem call vsvars32.bat
 rem popd 
 rem Use standalone Visual Studio compiler
 set BUILDER=msbuild
-%BUILDER% %* "/p:PlatformToolset=v140"
+%BUILDER% %* "/p:PlatformToolset=v141"

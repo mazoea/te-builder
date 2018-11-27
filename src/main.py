@@ -21,8 +21,9 @@ import subprocess
 import locale
 import codecs
 from time import sleep
-python2 = sys.version_info[0] < 3
-
+PY2 = sys.version_info[0] < 3
+if PY2:
+    input = raw_input
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s')
 _logger = logging.getLogger()
@@ -35,7 +36,7 @@ _logger = logging.getLogger()
 # noinspection PyBroadException
 def uni(str_str, encoding="utf-8"):
     """ Try to get unicode without errors """
-    if not python2:
+    if not PY2:
         return str_str
     try:
         if isinstance(str_str, unicode):
@@ -136,7 +137,7 @@ def run(env_dict, cmd, logger=None, debug=0, cwd=None):
                      tempik_stdout.name,
                      tempik_stderr.name)
     try:
-        if python2:
+        if PY2:
             cmd = cmd.encode(locale.getpreferredencoding())
     except:
         pass
@@ -410,7 +411,7 @@ if __name__ == "__main__":
         _logger.info("\n" + "\n".join(
             ["%2d. %s" % (i, x) for i, x in enumerate(available_settings)])
         )
-        idx = raw_input("Select configuration> ")
+        idx = input("Select configuration> ")
         build_settings = available_settings[int(idx)]
         build_settings = json.load(
             open(build_settings, mode="r"), encoding="utf-8")
