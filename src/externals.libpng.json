@@ -1,0 +1,8 @@
+{
+    "projects": [
+        {
+            "name": "libpng",
+            "path": "te-external/libpng/"
+        }
+    ]
+}
