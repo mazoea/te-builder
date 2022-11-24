@@ -278,8 +278,22 @@ def msvc_build_run(env, project_name, sln_file, configuration, build_dict, paral
         cmd = "%s%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo%s" % (
             env["cmd-prefix"], msvcbuilder, sln_file, command, conf, platform, parallel, logfile, env["cmd-suffix"]
         )
-        _logger.info("Executing [%s]\n%s", cmd, "\n\t".join(cmd.split()))
-        ret, stdout, stderr, took = run({}, cmd, _logger)
+        if env["use-cmd"]:
+            # make bat
+            cmd_file_path = ".\\__exec.bat"
+            with open(cmd_file_path, encoding="utf-8", mode="w+") as fout:
+                fout.write(cmd)
+            cmd = "cmd /c \"%s\"" % cmd_file_path
+            _logger.info("Executing [%s]\n%s", cmd, "\n\t".join(cmd.split()))
+            ret, stdout, stderr, took = run({}, cmd, _logger)
+            try:
+                os.remove(cmd_file_path)
+            except:
+                pass
+        else:
+            _logger.info("Executing [%s]\n%s", cmd, "\n\t".join(cmd.split()))
+            ret, stdout, stderr, took = run({}, cmd, _logger)
+
         if 0 != ret:
             to_show *= 10
         _logger.info("Took [%s], ret code [%d]", took, ret)
@@ -432,8 +446,8 @@ if __name__ == "__main__":
             _logger.critical("Cannot find VS installation path [%s]", stdout)
             sys.exit(1)
         path = inst_path[0].split(":", 1)[1].strip()
-        env["cmd-prefix"] = "cmd /c \"%s\\Common7\\Tools\\VsDevCmd.bat && " % path
-        env["cmd-suffix"] = "\""
+        env["use-cmd"] = True
+        env["cmd-prefix"] = "\"%s\\Common7\\Tools\\VsDevCmd.bat\" && " % path
         env["msvc-builder"] = "msbuild /p:PlatformToolset=%s " % env["dev-platform"]
         _logger.info("Using [%s] as dev prompt", env["cmd-prefix"])
 
@@ -464,6 +478,7 @@ if __name__ == "__main__":
             ret1, status = msvc_build_run(
                 env, project_name, sln_file, configuration, build_dict, parallel, lines_to_show
             )
+            break
 
         ret += ret1
         build_status.append(status)
