@@ -275,8 +275,8 @@ def msvc_build_run(env, project_name, sln_file, configuration, build_dict, paral
 
     def _build(command="rebuild"):
         to_show = lines_to_show
-        cmd = "%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo" % (
-            msvcbuilder, sln_file, command, conf, platform, parallel, logfile
+        cmd = "%s%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo" % (
+            env["cmd-prefix"], msvcbuilder, sln_file, command, conf, platform, parallel, logfile
         )
         _logger.info("Executing \n%s", "\n\t".join(cmd.split()))
         ret, stdout, stderr, took = run({}, cmd, _logger)
@@ -375,6 +375,7 @@ def parse_command_line(env):
     try:
         options = [
             "settings=",
+            "dev-prompt="
         ]
         input_options = sys.argv[1:]
         opts, _ = getopt.getopt(input_options, "", options)
@@ -395,6 +396,8 @@ def parse_command_line(env):
                 k, v = param.split("=")
                 env[k] = v
             continue
+        if option == "--dev-prompt":
+            env["dev-platform"] = param
     return env, found
 
 
@@ -416,6 +419,21 @@ if __name__ == "__main__":
         build_settings = json.load(
             open(build_settings, mode="r"), encoding="utf-8")
         extend_dict(env, build_settings)
+
+    # find dev prompts cmd
+    if env["dev-platform"] is not None:
+        cmd = r"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+        res = subprocess.run([cmd], stdout=subprocess.PIPE, shell=True)
+        stdout = res.stdout.decode("utf-8")
+        # _logger.info(stdout)
+        inst_path = [x.strip() for x in stdout.splitlines() if "installationPath" in x.strip()]
+        if len(inst_path) != 1:
+            _logger.critical("Cannot find VS installation path [%s]", stdout)
+            sys.exit(1)
+        path = inst_path[0].split(":", 1)[1].strip()
+        env["cmd-prefix"] = "cmd /c \"%s\\Common7\\Tools\\VsDevCmd.bat\" && " % path
+        env["msvc-builder"] = "msbuild /p:PlatformToolset=%s " % env["dev-platform"]
+        _logger.info("Using [%s] as dev prompt", env["cmd-prefix"])
 
     # for all configurations execute run
     for configuration, build_dict, project_dir, _1 in foreach(env):
