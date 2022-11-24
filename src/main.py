@@ -478,7 +478,6 @@ if __name__ == "__main__":
             ret1, status = msvc_build_run(
                 env, project_name, sln_file, configuration, build_dict, parallel, lines_to_show
             )
-            break
 
         ret += ret1
         build_status.append(status)
