@@ -77,4 +77,5 @@ settings = {
     # whether to run automatically in cmd or using dev prompt
     "dev-platform": None,
     "cmd-prefix": "",
+    "cmd-suffix": "",
 }

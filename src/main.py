@@ -275,10 +275,10 @@ def msvc_build_run(env, project_name, sln_file, configuration, build_dict, paral
 
     def _build(command="rebuild"):
         to_show = lines_to_show
-        cmd = "%s%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo" % (
-            env["cmd-prefix"], msvcbuilder, sln_file, command, conf, platform, parallel, logfile
+        cmd = "%s%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo%s" % (
+            env["cmd-prefix"], msvcbuilder, sln_file, command, conf, platform, parallel, logfile, env["cmd-suffix"]
         )
-        _logger.info("Executing \n%s", "\n\t".join(cmd.split()))
+        _logger.info("Executing [%s]\n%s", cmd, "\n\t".join(cmd.split()))
         ret, stdout, stderr, took = run({}, cmd, _logger)
         if 0 != ret:
             to_show *= 10
@@ -432,7 +432,8 @@ if __name__ == "__main__":
             _logger.critical("Cannot find VS installation path [%s]", stdout)
             sys.exit(1)
         path = inst_path[0].split(":", 1)[1].strip()
-        env["cmd-prefix"] = "cmd /c \"%s\\Common7\\Tools\\VsDevCmd.bat\" && " % path
+        env["cmd-prefix"] = "cmd /c \"%s\\Common7\\Tools\\VsDevCmd.bat && " % path
+        env["cmd-suffix"] = "\""
         env["msvc-builder"] = "msbuild /p:PlatformToolset=%s " % env["dev-platform"]
         _logger.info("Using [%s] as dev prompt", env["cmd-prefix"])
 
