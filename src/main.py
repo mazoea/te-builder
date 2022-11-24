@@ -423,9 +423,10 @@ if __name__ == "__main__":
     # find dev prompts cmd
     if env["dev-platform"] is not None:
         cmd = r"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+        _logger.info("Executing [%s]", cmd)
         res = subprocess.run([cmd], stdout=subprocess.PIPE, shell=True)
         stdout = res.stdout.decode("utf-8")
-        # _logger.info(stdout)
+        _logger.info(stdout)
         inst_path = [x.strip() for x in stdout.splitlines() if "installationPath" in x.strip()]
         if len(inst_path) != 1:
             _logger.critical("Cannot find VS installation path [%s]", stdout)
