@@ -21,6 +21,8 @@ settings = {
 
     "projects_top_dir": os.path.join(this_dir, "..", ".."),
     "msvc-builder": os.path.join(this_dir, "vcrun.bat"),
+    "msvc-toolset":  "/p:PlatformToolset=v142",
+    "msvc-toolset-template":  "/p:PlatformToolset=%s",
 
     "lines_to_show": 20,
 

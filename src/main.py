@@ -272,11 +272,12 @@ def msvc_build_run(env, project_name, sln_file, configuration, build_dict, paral
     """
     conf, platform = configuration.split("|")
     msvcbuilder = env["msvc-builder"]
+    msvctoolset = env["msvc-toolset"]
 
     def _build(command="rebuild"):
         to_show = lines_to_show
-        cmd = "%s%s \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo%s" % (
-            env["cmd-prefix"], msvcbuilder, sln_file, command, conf, platform, parallel, logfile, env["cmd-suffix"]
+        cmd = "%s%s \"%s\" \"%s\" /t:%s \"/p:configuration=%s,platform=%s\" /m:%s \"/fileLoggerParameters:LogFile=%s\" /nologo%s" % (
+            env["cmd-prefix"], msvcbuilder, msvctoolset, sln_file, command, conf, platform, parallel, logfile, env["cmd-suffix"]
         )
         if env["use-cmd"]:
             # make bat
@@ -389,7 +390,8 @@ def parse_command_line(env):
     try:
         options = [
             "settings=",
-            "dev-prompt="
+            "dev-prompt=",
+            "msvc-toolset=",
         ]
         input_options = sys.argv[1:]
         opts, _ = getopt.getopt(input_options, "", options)
@@ -412,6 +414,11 @@ def parse_command_line(env):
             continue
         if option == "--dev-prompt":
             env["dev-platform"] = param
+            continue
+        if option == "--msvc-toolset":
+            env["msvc-toolset"] = env["msvc-toolset-template"] % param
+            continue
+            
     return env, found
 
 
