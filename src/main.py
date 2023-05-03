@@ -437,8 +437,7 @@ if __name__ == "__main__":
         )
         idx = input("Select configuration> ")
         build_settings = available_settings[int(idx)]
-        build_settings = json.load(
-            open(build_settings, mode="r"), encoding="utf-8")
+        build_settings = json.load(open(build_settings, mode="r"))
         extend_dict(env, build_settings)
 
     # find dev prompts cmd
