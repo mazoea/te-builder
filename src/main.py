@@ -399,14 +399,14 @@ def parse_command_line(env):
         _logger.info(u"Invalid arguments [%s]", e)
         sys.exit(1)
 
-    found= False
+    found = False
     for option, param in opts:
         if option == "--settings":
             found = True
             _logger.info("Using [%s] settings", param)
             if os.path.exists(param):
-                input_settings = json.load(
-                    open(param, mode="r"), encoding="utf-8")
+                with open(param, mode="r", encoding="utf-8") as fin:
+                    input_settings = json.load(fin)
                 extend_dict(env, input_settings)
             else:
                 k, v = param.split("=")
@@ -418,7 +418,7 @@ def parse_command_line(env):
         if option == "--msvc-toolset":
             env["msvc-toolset"] = env["msvc-toolset-template"] % param
             continue
-            
+
     return env, found
 
 
@@ -447,7 +447,8 @@ if __name__ == "__main__":
         res = subprocess.run([cmd], stdout=subprocess.PIPE, shell=True)
         stdout = res.stdout.decode("utf-8")
         _logger.info("\n".join(stdout.splitlines()))
-        inst_path = [x.strip() for x in stdout.splitlines() if "installationPath" in x.strip()]
+        inst_path = [x.strip() for x in stdout.splitlines()
+                     if "installationPath" in x.strip()]
         if len(inst_path) != 1:
             _logger.critical("Cannot find VS installation path [%s]", stdout)
             sys.exit(1)

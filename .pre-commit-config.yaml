@@ -1,4 +1,9 @@
--   repo: git://github.com/pre-commit/mirrors-autopep8
-    sha: 07c37efc6f4c514caa42d851ca16c8a84c36e84a
+repos:
+-   repo: https://github.com/pre-commit/mirrors-autopep8
+    rev: v2.0.2
     hooks:
     -   id: autopep8
+        args:
+        - -i
+        - --max-line-length=90
+
