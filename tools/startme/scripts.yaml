@@ -1,0 +1,111 @@
+title: te-builder interactive launcher
+discovery:
+  include:
+    - scripts/*.bat
+    - tools/**/*.py
+  exclude:
+    - tools/**/__pycache__/**
+    - tools/**/scripts.yaml
+    - .venv/**
+    - .pytest_cache/**
+    - _logs/**
+defaults:
+  wait_after_run: true
+  confirm_before_run: false
+  show_discovered: false
+  color: true
+  progress: true
+sections:
+  - id: build
+    title: Builds (Mazoea native deps)
+  - id: dev
+    title: Dev — tests, lint, format
+  - id: setup
+    title: Setup
+  - id: discovered
+    title: Discovered scripts needing metadata
+scripts:
+  # ── BUILDS ───────────────────────────────────────────────────────────────
+  - id: build-externals-basic
+    section: build
+    path: scripts/build-externals-basic.bat
+    label: Build — externals (basic image libs)
+    description: |
+      Builds the six basic image libraries (zlib, libtiff, libpng, jpeg,
+      giflib, freetype) against the sibling te-external/ checkout. This is
+      the preset exercised in CI.
+    prerequisites:
+      - sibling te-external/ checked out next to te-builder/
+      - MSBuild from VS 2019 or 2022 on PATH
+    outputs:
+      - <project>/libs/<configuration>/*.lib
+      - <project>/libs/<configuration>/*.dll
+  - id: build-externals-full
+    section: build
+    path: scripts/build-externals.bat
+    label: Build — externals (full chain incl. cairo/pango/icu)
+    description: |
+      Builds the full external chain: basic libs plus libffi, libiconv,
+      libxml2, icu, fontconfig, glib, harfbuzz, pixman, cairo, pango.
+  - id: build-leptonica
+    section: build
+    path: scripts/build-leptonica.bat
+    label: Build — leptonica
+    description: |
+      Builds leptonica against te-external-leptonica/. Requires that repo
+      to be cloned as a sibling.
+  - id: build-tesseract3
+    section: build
+    path: scripts/build-tesseract3.bat
+    label: Build — tesseract 3
+    description: |
+      Builds tesseract 3 against te-external-tesseract/tesseract/.
+  - id: build-tesseract3-all
+    section: build
+    path: scripts/build-tesseract3-all.bat
+    label: Build — tesseract 3 full chain (externals + leptonica + tesseract)
+    description: |
+      End-to-end tesseract 3 build: image libs, leptonica, then tesseract.
+  - id: build-tesseract4
+    section: build
+    path: scripts/build-tesseract4.bat
+    label: Build — tesseract 4
+    description: |
+      Builds tesseract 4 against te-external-tesseract4/.
+  - id: build-dry-run
+    section: build
+    path: scripts/build-dry-run.bat
+    label: Build — dry-run plan for externals.basic
+    description: |
+      Print the projects and configurations that would be built without
+      invoking MSBuild. Useful for sanity-checking a fresh checkout.
+
+  # ── DEV ──────────────────────────────────────────────────────────────────
+  - id: dev-pytest
+    section: dev
+    path: scripts/pytest.bat
+    label: Dev — run pytest
+    description: |
+      Runs the test suite. Same command that gates CI.
+  - id: dev-ruff-check
+    section: dev
+    path: scripts/ruff-check.bat
+    label: Dev — ruff check src tests tools
+    description: |
+      Linter pass over src/, tests/, tools/. CI fails on any error.
+  - id: dev-ruff-format
+    section: dev
+    path: scripts/ruff-format.bat
+    label: Dev — ruff format src tests tools
+    description: |
+      Apply formatter in place. The pre-commit autopep8 hook is aligned to
+      ruff's 90-column width.
+
+  # ── SETUP ────────────────────────────────────────────────────────────────
+  - id: setup-install
+    section: setup
+    path: scripts/install-dev.bat
+    label: Setup — pip install -e .[dev,launcher]
+    description: |
+      Editable install of te-builder with developer tools (pytest, ruff)
+      and the launcher dependencies (PyYAML, tqdm).

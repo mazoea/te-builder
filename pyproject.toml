@@ -46,6 +46,9 @@ extend-exclude = [
     # Legacy single-file orchestrator, replaced by te_builder package.
     "src/main.py",
     "src/settings.py",
+    # Vendored interactive launcher; updated by syncing from the upstream
+    # repo rather than by local style edits.
+    "tools/startme/menu.py",
 ]
 
 [tool.ruff.lint]
