@@ -37,7 +37,9 @@ pythonpath = ["src", "tools/startme"]
 addopts = "-ra -q"
 
 [tool.ruff]
-line-length = 100
+# 90 matches the pre-existing .pre-commit-config.yaml autopep8 setting so the
+# two formatters do not fight on every commit.
+line-length = 90
 target-version = "py311"
 src = ["src", "tests", "tools"]
 extend-exclude = [
