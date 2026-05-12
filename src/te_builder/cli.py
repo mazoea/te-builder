@@ -34,6 +34,7 @@ from .orchestration import (
 )
 from .runner import run
 from .status import StatusRow, summarize_from_log
+from .vs_detect import detect_installs, select_toolset
 
 _logger = logging.getLogger(__name__)
 _PRESETS_PACKAGE = "te_builder.presets"
@@ -95,8 +96,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--msvc-toolset",
-        default="v143",
-        help="MSVC toolset version (e.g. v142, v143). Default: v143.",
+        default=None,
+        help="MSVC toolset version (v141 / v142 / v143 / v145). "
+        "Default: auto-detect via vswhere; when several VS installs are "
+        "found and stdin is a TTY, you are prompted once; in CI the "
+        "highest detected toolset wins. Falls back to v143 if nothing is "
+        "found.",
     )
     parser.add_argument(
         "--configurations",
@@ -127,13 +132,41 @@ def _print_preset_listing() -> None:
         sys.stderr.write(f"  - {name}\n")
 
 
+_FALLBACK_TOOLSET = "v143"
+
+
+def _resolve_toolset(explicit: str | None) -> str:
+    """Return the toolset to use. Order of precedence:
+    1. `--msvc-toolset` if the user passed it (highest precedence, also
+       what CI uses to skip detection entirely);
+    2. vswhere detection — single install: that one; multiple installs
+       and a TTY: prompt the user once; multiple installs and no TTY:
+       highest version, so CI never blocks;
+    3. fallback to v143 if nothing is detected (Linux unit tests,
+       vswhere missing, etc.) so the command line still parses.
+    """
+    if explicit:
+        return explicit
+    installs = detect_installs()
+    if not installs:
+        _logger.info(
+            "no VS installations detected via vswhere; falling back to %s",
+            _FALLBACK_TOOLSET,
+        )
+        return _FALLBACK_TOOLSET
+    chosen = select_toolset(installs, interactive=sys.stdin.isatty())
+    if chosen is None:
+        return _FALLBACK_TOOLSET
+    _logger.info("using MSVC toolset %s", chosen)
+    return chosen
+
+
 def _apply_overrides(env: Env, args: argparse.Namespace) -> Env:
     if args.configurations:
         env.configurations = list(args.configurations)
     if args.project_root is not None:
         env.project_root = args.project_root.resolve()
-    if args.msvc_toolset:
-        env.msvc_toolset = env.msvc_toolset_template % args.msvc_toolset
+    env.msvc_toolset = env.msvc_toolset_template % _resolve_toolset(args.msvc_toolset)
     env.log_dir = env.log_dir.resolve()
     return env
 

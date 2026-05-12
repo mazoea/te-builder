@@ -109,3 +109,13 @@ scripts:
     description: |
       Editable install of te-builder with developer tools (pytest, ruff)
       and the launcher dependencies (PyYAML, tqdm).
+  - id: setup-list-vs
+    section: setup
+    path: scripts/list-vs.bat
+    label: Setup — list Visual Studio installs + toolset mapping
+    description: |
+      Runs vswhere.exe and prints every Visual Studio installation the
+      builder can use, along with its MSVC platform toolset:
+      VS 2017->v141, VS 2019->v142, VS 2022->v143, VS 2026->v145.
+      Useful before running a build if you have several VS versions side
+      by side and want to confirm which one the auto-detector will pick.

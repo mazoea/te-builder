@@ -29,8 +29,9 @@ checkouts live somewhere else.
 ## Prerequisites
 
 - Python 3.11 or newer.
-- MSBuild from Visual Studio 2019 or 2022 on `PATH`. The default toolset is
-  `v143` (VS 2022); pass `--msvc-toolset v142` for VS 2019.
+- MSBuild from Visual Studio 2017, 2019, 2022, or 2026 on `PATH`. By
+  default te-builder runs `vswhere.exe` and picks the highest installed
+  toolset (see [Toolset detection](#toolset-detection) below).
 - Optional: `cmake` for projects that ship a `cmaker.bat`.
 - Optional: `pre-commit` if you want the bundled autopep8 hook.
 
@@ -86,6 +87,32 @@ Build artifacts land in
 `<project>/libs/<configuration>/*.{lib,dll,exp}` so multiple configurations
 coexist without overwriting each other.
 
+## Toolset detection
+
+If you do not pass `--msvc-toolset`, te-builder runs `vswhere.exe` and maps
+each detected install to its MSVC platform toolset:
+
+| Visual Studio | Major version | Platform toolset |
+|---|---|---|
+| VS 2017 | 15.x | `v141` |
+| VS 2019 | 16.x | `v142` |
+| VS 2022 | 17.x | `v143` |
+| VS 2026 | 18.x | `v145` (v144 was skipped by Microsoft) |
+
+Decision rules:
+
+- **One install detected** → used silently, logged at INFO.
+- **Several installs and stdin is a TTY** → you are prompted once at the
+  start of the run with a numbered menu (default is the highest version,
+  so a blank Enter picks the newest VS).
+- **Several installs and stdin is not a TTY** (e.g. GitHub Actions, any
+  CI) → the highest detected toolset wins, with no prompt — CI never
+  hangs waiting for a key.
+- **`--msvc-toolset` passed explicitly** → detection is skipped entirely.
+
+Run `scripts\list-vs.bat` (or `python -m te_builder.vs_detect`) to see
+the same list te-builder uses, without starting a build.
+
 ## CLI reference
 
 ```
@@ -97,7 +124,9 @@ Highlights:
 - `--preset NAME_OR_PATH` — packaged preset name (no extension) or a path
   to a custom JSON.
 - `--project-root PATH` — override the sibling-repo parent directory.
-- `--msvc-toolset v143` — MSVC toolset; default is `v143`.
+- `--msvc-toolset v143` — MSVC toolset (`v141`/`v142`/`v143`/`v145`).
+  Default: auto-detect via vswhere — see
+  [Toolset detection](#toolset-detection).
 - `--configurations Release|x64 Debug-MTDLL|x64` — override the preset's
   configurations.
 - `--dry-run` — print the plan without invoking MSBuild.
