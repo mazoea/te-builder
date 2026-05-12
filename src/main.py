@@ -1,8 +1,11 @@
 """Backwards-compatible shim for `python src/main.py ...`.
 
 The real CLI lives in `te_builder.cli`. Prefer `python -m te_builder` or
-the installed `te-builder` console script. This shim exists so the README
-examples and historical scripts keep working without modification.
+the installed `te-builder` console script. This shim preserves the
+historical entry point only — the legacy flag surface (`--settings=...`,
+the interactive numbered menu, the `--settings=key=value` magic) is gone,
+so existing invocations need to be rewritten with the new flags
+(`--preset NAME`, `--project-root`, …). See README.md "Breaking changes".
 """
 
 from __future__ import annotations

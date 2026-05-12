@@ -83,7 +83,6 @@ class Env:
     msvc_toolset: str = "/p:PlatformToolset=v143"
     msvc_toolset_template: str = "/p:PlatformToolset=%s"
     msvc_builder: str = "msbuild"
-    dev_platform: str | None = None
     use_cmd: bool = False
     cmd_prefix: str = ""
     cmd_suffix: str = ""

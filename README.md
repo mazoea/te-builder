@@ -98,8 +98,6 @@ Highlights:
   to a custom JSON.
 - `--project-root PATH` — override the sibling-repo parent directory.
 - `--msvc-toolset v143` — MSVC toolset; default is `v143`.
-- `--dev-prompt v142` — inject the Developer prompt's `VsDevCmd.bat` if you
-  are running outside the Developer PowerShell terminal.
 - `--configurations Release|x64 Debug-MTDLL|x64` — override the preset's
   configurations.
 - `--dry-run` — print the plan without invoking MSBuild.

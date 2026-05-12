@@ -33,10 +33,19 @@ from .orchestration import (
     retry_build,
 )
 from .runner import run
-from .status import StatusRow
+from .status import StatusRow, summarize_from_log
 
 _logger = logging.getLogger(__name__)
 _PRESETS_PACKAGE = "te_builder.presets"
+
+
+def _configuration_type(value: str) -> str:
+    if "|" not in value or value.startswith("|") or value.endswith("|"):
+        raise argparse.ArgumentTypeError(
+            f"invalid configuration {value!r}: expected Config|Platform "
+            "(e.g. 'Release|x64', 'Debug-MTDLL|x64')"
+        )
+    return value
 
 
 def list_packaged_presets() -> list[str]:
@@ -90,14 +99,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="MSVC toolset version (e.g. v142, v143). Default: v143.",
     )
     parser.add_argument(
-        "--dev-prompt",
-        help="Platform toolset to inject through the Developer prompt "
-        "(rare; used when running outside Developer PowerShell).",
-    )
-    parser.add_argument(
         "--configurations",
         nargs="+",
-        help="Override the configurations from the preset.",
+        type=_configuration_type,
+        help="Override the configurations from the preset. Each value must "
+        "have the shape Config|Platform (e.g. Release|x64).",
     )
     parser.add_argument(
         "--dry-run",
@@ -128,8 +134,6 @@ def _apply_overrides(env: Env, args: argparse.Namespace) -> Env:
         env.project_root = args.project_root.resolve()
     if args.msvc_toolset:
         env.msvc_toolset = env.msvc_toolset_template % args.msvc_toolset
-    if args.dev_prompt:
-        env.dev_platform = args.dev_prompt
     env.log_dir = env.log_dir.resolve()
     return env
 
@@ -176,11 +180,11 @@ def _build_one(
         return result.returncode
 
     rc = retry_build(attempt, max_retries=project.try_count)
-    if rc == 0:
-        return StatusRow(ok=True, line=f"{project.name:>15} : {configuration:>20} : OK")
-    return StatusRow(
-        ok=False,
-        line=f"{project.name:>15} : {configuration:>20} : FAILED rc={rc} !!!!",
+    return summarize_from_log(
+        returncode=rc,
+        log_file=log_file,
+        project_name=project.name,
+        configuration=configuration,
     )
 
 

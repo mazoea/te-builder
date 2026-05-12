@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from te_builder.status import StatusRow, summarize
+from te_builder.status import StatusRow, summarize, summarize_from_log
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -82,3 +82,27 @@ def test_statusrow_is_pickle_friendly_dataclass() -> None:
     row = StatusRow(ok=True, line="example")
     assert row.ok is True
     assert row.line == "example"
+
+
+def test_summarize_from_log_reads_file_and_enriches_line(tmp_path) -> None:
+    log = tmp_path / "zlib.Release-x64.log"
+    log.write_text(_read("msbuild_failure.txt"), encoding="utf-8")
+    row = summarize_from_log(
+        returncode=1,
+        log_file=log,
+        project_name="zlib",
+        configuration="Release|x64",
+    )
+    assert row.ok is False
+    assert "1 Error" in row.line
+
+
+def test_summarize_from_log_tolerates_missing_file(tmp_path) -> None:
+    row = summarize_from_log(
+        returncode=0,
+        log_file=tmp_path / "never-written.log",
+        project_name="zlib",
+        configuration="Release|x64",
+    )
+    assert row.ok is True
+    assert "OK" in row.line

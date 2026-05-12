@@ -1,8 +1,12 @@
-"""Backwards-compatible re-export.
+"""Backwards-compatible re-export — read-only.
 
-The legacy `settings.settings` dict has been replaced by `te_builder.Env`.
-Keeping this shim around lets older imports (`from settings import settings`)
-keep working long enough for downstream tooling to migrate.
+The legacy `settings.settings` was a plain `dict`. It is now an `Env`
+dataclass instance from `te_builder.config`. This means
+`from settings import settings` still resolves to *something*, but
+dict-style access (`settings["log_dir"]`) and mutation will fail. Existing
+imports should migrate to `te_builder.config.Env`. This shim exists so the
+module import itself does not break overnight; it is not a compatibility
+layer for the old dict interface.
 """
 
 from __future__ import annotations

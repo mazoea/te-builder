@@ -66,3 +66,31 @@ def test_main_dry_run_lists_planned_projects(
     combined = captured.out + captured.err
     assert "zlib" in combined
     assert "libpng" in combined
+
+
+def test_main_rejects_configuration_without_pipe(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Without the `Config|Platform` shape, MSBuild dispatch can't split
+    the value. Reject up front rather than crashing later."""
+    with pytest.raises(SystemExit) as info:
+        main(["--preset", "externals.basic", "--dry-run", "--configurations", "Release"])
+    assert info.value.code == 2
+    captured = capsys.readouterr()
+    assert "Config|Platform" in captured.err
+
+
+def test_main_accepts_valid_configuration_format(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    rc = main(
+        [
+            "--preset",
+            "externals.basic",
+            "--dry-run",
+            "--configurations",
+            "Release|x64",
+            "Debug-MTDLL|x64",
+        ]
+    )
+    assert rc == 0

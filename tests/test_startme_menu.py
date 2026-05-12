@@ -1,9 +1,8 @@
 """Unit tests for the reusable startme launcher (`tools/startme/menu.py`).
 
 Exercises only the pure-logic helpers — no TTY, no subprocess. The launcher
-itself is ported verbatim from the reference at
-`c:\\jm\\__FAST\\knowledger\\tools\\startme`; these tests are the local
-contract we want to keep stable as we curate `scripts.yaml`.
+itself is vendored from an internal upstream launcher project; these tests
+are the local contract we want to keep stable as we curate `scripts.yaml`.
 """
 
 from __future__ import annotations
