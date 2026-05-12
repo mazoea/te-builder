@@ -1,0 +1,10 @@
+{
+    "projects": [
+        {"name": "zlib", "path": "te-external/zlib/"},
+        {"name": "libpng", "path": "te-external/libpng/"}
+    ],
+    "configurations": [
+        "Release|x64",
+        "Debug-MTDLL|x64"
+    ]
+}
