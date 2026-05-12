@@ -1,2 +1,3 @@
-python main.py --settings=tesseract.json
+@echo off
+python -m te_builder --preset externals.basic %*
 pause

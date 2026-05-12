@@ -46,3 +46,24 @@ jobs:
           python -m pip install -e .[dev,launcher]
       - name: pytest
         run: pytest
+
+  smoke-build:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: te-builder
+      - name: Clone te-external (public sibling)
+        run: git clone --depth 1 https://github.com/mazoea/te-external.git te-external
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install te-builder
+        working-directory: te-builder
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev,launcher]
+      - name: Dry-run externals.basic preset
+        working-directory: te-builder
+        run: python -m te_builder --preset externals.basic --dry-run

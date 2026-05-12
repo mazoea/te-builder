@@ -1,2 +1,3 @@
-python main.py
+@echo off
+python -m te_builder %*
 pause
