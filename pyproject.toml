@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "te-builder"
+version = "3.1.0"
+description = "Build orchestrator for the Mazoea text-extractor native dependency chain."
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.11"
+authors = [{ name = "Mazoea" }]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+launcher = [
+    "PyYAML>=6",
+    "tqdm>=4",
+]
+
+[project.scripts]
+te-builder = "te_builder.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["te_builder*"]
+
+[tool.setuptools.package-data]
+te_builder = ["presets/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tools/startme"]
+addopts = "-ra -q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "tools"]
+extend-exclude = [
+    # Legacy single-file orchestrator, replaced by te_builder package.
+    "src/main.py",
+    "src/settings.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "PL"]
+ignore = [
+    "PLR0913",
+    "PLR2004",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR2004", "S101"]

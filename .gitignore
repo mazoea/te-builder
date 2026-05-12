@@ -1,4 +1,31 @@
-_logs
+# Build logs (generated at runtime by te_builder.cli)
+_logs/
+
+# Python
+__pycache__/
 *.pyc
-.idea
+*.pyo
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Build orchestrator scratch
+__exec.bat
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
 *.bak
+.DS_Store
+Thumbs.db
+
+# Claude Code local workspace
+.claude/
