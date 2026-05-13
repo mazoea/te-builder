@@ -1,8 +1,9 @@
 {
     "projects": [
-        {
-            "name": "libpng",
-            "path": "te-external/libpng/"
-        }
+        {"name": "libpng", "path": "te-external/libpng/"}
+    ],
+    "configurations": [
+        "Debug-MTDLL|x64",
+        "Release-MTDLL|x64"
     ]
 }

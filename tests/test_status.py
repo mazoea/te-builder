@@ -106,3 +106,19 @@ def test_summarize_from_log_tolerates_missing_file(tmp_path) -> None:
     )
     assert row.ok is True
     assert "OK" in row.line
+
+
+def test_summarize_from_log_failure_with_missing_log_reports_returncode(
+    tmp_path,
+) -> None:
+    """When MSBuild never produced a log (e.g. msbuild itself wasn't on
+    PATH), the failure summary must reflect the real return code rather
+    than silently swallow the failure with "OK"."""
+    row = summarize_from_log(
+        returncode=9009,
+        log_file=tmp_path / "never-written.log",
+        project_name="zlib",
+        configuration="Release-MTDLL|x64",
+    )
+    assert row.ok is False
+    assert "9009" in row.line

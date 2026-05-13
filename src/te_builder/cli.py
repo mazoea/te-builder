@@ -30,6 +30,7 @@ from .orchestration import (
     cleanup_libs_for_configuration,
     configuration_lib_dir,
     copy_libs_for_configuration,
+    prepare_log_file,
     retry_build,
 )
 from .runner import run
@@ -191,6 +192,7 @@ def _build_one(
 ) -> StatusRow:
     log_name = f"{project.name}.{configuration.replace('|', '-')}.log"
     log_file = env.log_dir / log_name
+    prepare_log_file(log_file)
     sln = discover_sln(
         project_dir, env.project_defaults.solution_path, env.project_defaults.solution
     )

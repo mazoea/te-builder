@@ -16,6 +16,7 @@ from te_builder.config import ProjectDefaults
 from te_builder.orchestration import (
     cleanup_libs_for_configuration,
     copy_libs_for_configuration,
+    prepare_log_file,
     retry_build,
 )
 
@@ -74,6 +75,25 @@ def test_retry_build_breaks_on_first_success() -> None:
     rc = retry_build(attempt, max_retries=3)
     assert rc == 0
     assert len(attempts) == 1
+
+
+def test_prepare_log_file_removes_existing_log(tmp_path: Path) -> None:
+    """Stale log files from previous builds must be removed so that
+    summarize_from_log() never reads pre-existing content into the row
+    when the current build failed (or never ran)."""
+    log_dir = tmp_path / "_logs"
+    log_dir.mkdir()
+    stale = log_dir / "zlib.Release-MTDLL-x64.log"
+    stale.write_text("0 Error(s)\n", encoding="utf-8")
+    prepare_log_file(stale)
+    assert not stale.exists()
+
+
+def test_prepare_log_file_creates_parent_dir(tmp_path: Path) -> None:
+    log = tmp_path / "deep" / "nested" / "zlib.log"
+    prepare_log_file(log)
+    assert log.parent.is_dir()
+    assert not log.exists()
 
 
 def test_retry_build_returns_last_nonzero_when_all_fail() -> None:

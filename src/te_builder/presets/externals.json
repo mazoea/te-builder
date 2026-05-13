@@ -64,5 +64,9 @@
             "name": "pango",
             "path": "te-external/pango/"
         }
+    ],
+    "configurations": [
+        "Debug-MTDLL|x64",
+        "Release-MTDLL|x64"
     ]
 }

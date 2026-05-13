@@ -57,6 +57,20 @@ def cleanup_libs_for_configuration(
             entry.unlink()
 
 
+def prepare_log_file(log_file: Path) -> None:
+    """Ensure the parent directory exists and the log file does not.
+
+    Each MSBuild file logger appends to its target, so a stale log from a
+    previous run would otherwise leak into `summarize_from_log()`. The
+    test that pins this behaviour writes "0 Error(s)" then asserts the
+    summary of a failed build reflects the real return code rather than
+    the stale content.
+    """
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    if log_file.exists():
+        log_file.unlink()
+
+
 def retry_build(attempt: Callable[[], int], *, max_retries: int) -> int:
     """Run `attempt` once, then up to `max_retries` more times until it
     returns 0. Returns the last return code observed. Fixes the legacy bug

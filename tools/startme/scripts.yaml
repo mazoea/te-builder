@@ -32,11 +32,16 @@ scripts:
     label: Build — externals (basic image libs)
     description: |
       Builds the six basic image libraries (zlib, libtiff, libpng, jpeg,
-      giflib, freetype) against the sibling te-external/ checkout. This is
-      the preset exercised in CI.
+      giflib, freetype) against the sibling te-external/ checkout in the
+      Debug-MTDLL|x64 + Release-MTDLL|x64 configurations. This is the
+      preset exercised in CI. Auto-activates the latest Visual Studio
+      Developer environment, then auto-detects the matching MSVC toolset
+      (VS 2017 -> v141, VS 2019 -> v142, VS 2022 -> v143, VS 2026 -> v145).
     prerequisites:
       - sibling te-external/ checked out next to te-builder/
-      - MSBuild from VS 2019 or 2022 on PATH
+      - Visual Studio 2017 / 2019 / 2022 / 2026 installed (any edition,
+        including Build Tools); vswhere + VsDevCmd are picked up
+        automatically.
     outputs:
       - <project>/libs/<configuration>/*.lib
       - <project>/libs/<configuration>/*.dll
