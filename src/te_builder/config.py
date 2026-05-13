@@ -18,8 +18,9 @@ _logger = logging.getLogger(__name__)
 
 
 _DEFAULT_CONFIGURATIONS: tuple[str, ...] = (
-    "Release|x64",
-    "RelWithDebInfo|x64",
+    # The two configurations the te-external image-lib .sln files declare.
+    # Presets that need something different (e.g. tesseract3 with Release|x64)
+    # override this list in their JSON.
     "Debug-MTDLL|x64",
     "Release-MTDLL|x64",
 )
