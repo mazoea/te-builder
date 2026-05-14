@@ -60,7 +60,9 @@ class ProjectSpec:
 class ProjectDefaults:
     cmake_batch: str = "cmaker.bat"
     solution_path: str = "projects"
-    solution: str = "*.sln"
+    # `*.sln*` matches both the legacy `.sln` text format and the `.slnx`
+    # XML format CMake + VS 2022/2026 generate.
+    solution: str = "*.sln*"
     output_libs: str = "libs"
     parallel: int = 2
     copy: tuple[str, ...] = field(default_factory=lambda: _DEFAULT_COPY_GLOBS)

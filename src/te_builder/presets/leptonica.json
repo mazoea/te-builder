@@ -4,5 +4,9 @@
             "name": "leptonica",
             "path": "te-external-leptonica/leptonica/"
         }
+    ],
+    "configurations": [
+        "Debug|x64",
+        "RelWithDebInfo|x64"
     ]
 }
