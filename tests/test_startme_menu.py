@@ -1,4 +1,4 @@
-"""Unit tests for the reusable startme launcher (`tools/startme/menu.py`).
+"""Unit tests for the reusable startme launcher (`tools/startme/startme.py`).
 
 Exercises only the pure-logic helpers — no TTY, no subprocess. The launcher
 itself is vendored from an internal upstream launcher project; these tests
@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from menu import (
+
+from startme import (
     InputSpec,
     ScriptItem,
     _load_script,
@@ -72,14 +73,51 @@ def test_build_argv_passes_through_args() -> None:
     assert argv[-2:] == ["--flag", "value"]
 
 
+def test_build_argv_for_command_uses_shell() -> None:
+    """A `command` entry is run through the platform shell verbatim — no
+    wrapper .bat file involved."""
+    item = ScriptItem(
+        id="x",
+        section="dev",
+        path="",
+        command="python -m pytest",
+        label="x",
+        description="",
+    )
+    assert build_argv(item, Path("/repo"), platform_os="nt") == [
+        "cmd",
+        "/c",
+        "python -m pytest",
+    ]
+    assert build_argv(item, Path("/repo"), platform_os="posix") == [
+        "sh",
+        "-c",
+        "python -m pytest",
+    ]
+
+
 def test_matches_any_glob() -> None:
     assert _matches_any("tools/data/x.json", ("tools/data/**",))
     assert not _matches_any("tools/keep.py", ("tools/data/**",))
 
 
-def test_load_script_requires_path() -> None:
-    with pytest.raises(ValueError, match="path"):
-        _load_script({"id": "no-path"})
+def test_load_script_requires_path_or_command() -> None:
+    with pytest.raises(ValueError, match="exactly one of 'path' or 'command'"):
+        _load_script({"id": "neither"})
+
+
+def test_load_script_rejects_both_path_and_command() -> None:
+    with pytest.raises(ValueError, match="exactly one of 'path' or 'command'"):
+        _load_script({"id": "both", "path": "scripts/x.bat", "command": "echo hi"})
+
+
+def test_load_script_accepts_command_only() -> None:
+    item = _load_script(
+        {"id": "lint", "section": "dev", "command": "python -m ruff check src"}
+    )
+    assert item.command == "python -m ruff check src"
+    assert item.path == ""
+    assert item.label == "lint"
 
 
 def test_load_script_requires_id_or_falls_back_to_stem() -> None:

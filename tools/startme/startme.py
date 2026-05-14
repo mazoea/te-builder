@@ -84,6 +84,7 @@ class ScriptItem:
     path: str
     label: str
     description: str
+    command: str = ""
     when: str = ""
     prerequisites: tuple[str, ...] = ()
     inputs: tuple[InputSpec, ...] = ()
@@ -147,16 +148,20 @@ def _load_inputs(items: Any) -> tuple[InputSpec, ...]:
 
 def _load_script(raw: dict[str, Any]) -> ScriptItem:
     path = str(raw.get("path") or "")
+    command = str(raw.get("command") or "")
     script_id = str(raw.get("id") or Path(path).stem).strip()
     if not script_id:
         raise ValueError(f"script id is required for {raw!r}")
-    if not path:
-        raise ValueError(f"script path is required for {script_id}")
+    if bool(path) == bool(command):
+        raise ValueError(
+            f"script {script_id} needs exactly one of 'path' or 'command'"
+        )
     return ScriptItem(
         id=script_id,
         section=str(raw.get("section") or "discovered"),
         path=path.replace("\\", "/"),
-        label=str(raw.get("label") or Path(path).name),
+        command=command,
+        label=str(raw.get("label") or Path(path).name or script_id),
         description=str(raw.get("description") or "No description yet."),
         when=str(raw.get("when") or ""),
         prerequisites=_as_str_list(raw.get("prerequisites")),
@@ -249,9 +254,9 @@ def build_menu_items(
     repo_root: Path,
     options: RuntimeOptions,
 ) -> tuple[tuple[Section, ...], list[ScriptItem]]:
-    configured_by_path = {item.path: item for item in config.scripts if item.enabled}
-    items = list(configured_by_path.values())
+    items = [item for item in config.scripts if item.enabled]
     if options.show_discovered:
+        configured_paths = {item.path for item in items if item.path}
         discovered = discover_script_paths(
             repo_root,
             config.include,
@@ -259,7 +264,7 @@ def build_menu_items(
             show_progress=options.progress and sys.stderr.isatty(),
         )
         for path in discovered:
-            if path not in configured_by_path:
+            if path not in configured_paths:
                 items.append(_discovered_item(path))
     section_ids = {section.id for section in config.sections}
     if any(item.section not in section_ids for item in items):
@@ -305,6 +310,13 @@ _OPEN_WITH_SHELL = {".html", ".htm", ".md", ".pdf", ".yaml", ".yml", ".json", ".
 
 
 def build_argv(item: ScriptItem, repo_root: Path, *, platform_os: str = os.name) -> list[str]:
+    if item.command:
+        # A raw shell command instead of a wrapper script: run it through the
+        # platform shell so chaining ('&&') and built-ins ('call') work as
+        # written. `args` are not appended — they would land on the shell, not
+        # the command, so command entries bake every argument into the string.
+        shell = ["cmd", "/c"] if platform_os == "nt" else ["sh", "-c"]
+        return [*shell, item.command]
     target = _resolve_path(repo_root, item.path)
     suffix = target.suffix.lower()
     extra = list(item.args)
@@ -459,7 +471,7 @@ def _render_main(
             print(_color("  Outputs:", BOLD, options))
             for output in selected.outputs[:4]:
                 print(f"    - {output}")
-        print(_color("  Command: ", BOLD, options) + selected.path)
+        print(_color("  Command: ", BOLD, options) + (selected.command or selected.path))
     print()
     print(_color("Up/Down item | Left/Right section | Enter run | c config | r refresh | q quit", DIM, options))
     if status:

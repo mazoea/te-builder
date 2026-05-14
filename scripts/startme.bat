@@ -20,4 +20,4 @@ python -c "import yaml, tqdm" 2>nul || (
     )
 )
 
-python tools\startme\menu.py %*
+python tools\startme\startme.py %*

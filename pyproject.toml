@@ -7,7 +7,7 @@ name = "te-builder"
 version = "3.1.0"
 description = "Build orchestrator for the Mazoea text-extractor native dependency chain."
 readme = "README.md"
-license = { text = "GPL-3.0-or-later" }
+license = { text = "MIT" }
 requires-python = ">=3.11"
 authors = [{ name = "Mazoea" }]
 
@@ -48,7 +48,7 @@ extend-exclude = [
     "src/settings.py",
     # Vendored interactive launcher; updated by syncing from the upstream
     # repo rather than by local style edits.
-    "tools/startme/menu.py",
+    "tools/startme/startme.py",
 ]
 
 [tool.ruff.lint]
