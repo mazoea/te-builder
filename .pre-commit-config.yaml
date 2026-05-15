@@ -6,4 +6,5 @@ repos:
         args:
         - -i
         - --max-line-length=90
-
+        # Vendored launcher kept verbatim; ruff also excludes it.
+        exclude: ^tools/startme/startme\.py$

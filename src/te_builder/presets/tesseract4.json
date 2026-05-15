@@ -2,7 +2,7 @@
     "projects": [
         {
             "name": "tesseract",
-            "path": "te-external-tesseract/",
+            "path": "te-external-tesseract4/tesseract/",
             "try": 3
         }
     ],

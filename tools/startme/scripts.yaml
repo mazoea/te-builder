@@ -1,0 +1,130 @@
+title: te-builder interactive launcher
+discovery:
+  include:
+    - scripts/*.bat
+    - tools/**/*.py
+  exclude:
+    - tools/**/__pycache__/**
+    - tools/**/scripts.yaml
+    - .venv/**
+    - .pytest_cache/**
+    - _logs/**
+defaults:
+  wait_after_run: true
+  confirm_before_run: false
+  show_discovered: false
+  color: true
+  progress: true
+sections:
+  - id: build
+    title: Builds (Mazoea native deps)
+  - id: dev
+    title: Dev — tests, lint, format
+  - id: setup
+    title: Setup
+  - id: discovered
+    title: Discovered scripts needing metadata
+scripts:
+  # ── BUILDS ───────────────────────────────────────────────────────────────
+  # Build entries activate MSVC in their own cmd session, then invoke the
+  # builder. `call scripts\_activate-msvc.bat` is a no-op when msbuild is
+  # already on PATH; `&&` keeps the python step in the same activated shell.
+  - id: build-externals-basic
+    section: build
+    command: 'call scripts\_activate-msvc.bat && python -m te_builder --preset externals.basic'
+    label: Build — externals (basic image libs)
+    description: |
+      Builds the six basic image libraries (zlib, libtiff, libpng, jpeg,
+      giflib, freetype) against the sibling te-external/ checkout in the
+      Debug-MTDLL|x64 + Release-MTDLL|x64 configurations. This is the
+      preset exercised in CI. Auto-activates the latest Visual Studio
+      Developer environment, then auto-detects the matching MSVC toolset
+      (VS 2017 -> v141, VS 2019 -> v142, VS 2022 -> v143, VS 2026 -> v145).
+    prerequisites:
+      - sibling te-external/ checked out next to te-builder/
+      - Visual Studio 2017 / 2019 / 2022 / 2026 installed (any edition,
+        including Build Tools); vswhere + VsDevCmd are picked up
+        automatically.
+    outputs:
+      - <project>/libs/<configuration>/*.lib
+      - <project>/libs/<configuration>/*.dll
+  - id: build-externals-full
+    section: build
+    command: 'call scripts\_activate-msvc.bat && python -m te_builder --preset externals'
+    label: Build — externals (full chain incl. cairo/pango/icu)
+    description: |
+      Builds the full external chain: basic libs plus libffi, libiconv,
+      libxml2, icu, fontconfig, glib, harfbuzz, pixman, cairo, pango.
+  - id: build-leptonica
+    section: build
+    command: 'call scripts\_activate-msvc.bat && python -m te_builder --preset leptonica'
+    label: Build — leptonica
+    description: |
+      Builds leptonica against te-external-leptonica/. Requires that repo
+      to be cloned as a sibling.
+  - id: build-tesseract3
+    section: build
+    command: 'call scripts\_activate-msvc.bat && python -m te_builder --preset tesseract3'
+    label: Build — tesseract 3
+    description: |
+      Builds tesseract 3 against te-external-tesseract/tesseract/.
+  - id: build-tesseract3-all
+    section: build
+    command: 'call scripts\_activate-msvc.bat && python -m te_builder --preset tesseract3-all'
+    label: Build — tesseract 3 full chain (externals + leptonica + tesseract)
+    description: |
+      End-to-end tesseract 3 build: image libs, leptonica, then tesseract.
+  - id: build-tesseract4
+    section: build
+    command: 'call scripts\_activate-msvc.bat && python -m te_builder --preset tesseract4'
+    label: Build — tesseract 4
+    description: |
+      Builds tesseract 4 against te-external-tesseract4/.
+  - id: build-dry-run
+    section: build
+    command: 'python -m te_builder --preset externals.basic --dry-run'
+    label: Build — dry-run plan for externals.basic
+    description: |
+      Print the projects and configurations that would be built without
+      invoking MSBuild. Useful for sanity-checking a fresh checkout. No
+      MSVC activation needed — the plan does not call the compiler.
+
+  # ── DEV ──────────────────────────────────────────────────────────────────
+  - id: dev-pytest
+    section: dev
+    command: 'python -m pytest'
+    label: Dev — run pytest
+    description: |
+      Runs the test suite. Same command that gates CI.
+  - id: dev-ruff-check
+    section: dev
+    command: 'python -m ruff check src tests tools'
+    label: Dev — ruff check src tests tools
+    description: |
+      Linter pass over src/, tests/, tools/. CI fails on any error.
+  - id: dev-ruff-format
+    section: dev
+    command: 'python -m ruff format src tests tools'
+    label: Dev — ruff format src tests tools
+    description: |
+      Apply formatter in place. The pre-commit autopep8 hook is aligned to
+      ruff's 90-column width.
+
+  # ── SETUP ────────────────────────────────────────────────────────────────
+  - id: setup-install
+    section: setup
+    command: 'python -m pip install -e .[dev,launcher]'
+    label: Setup — pip install -e .[dev,launcher]
+    description: |
+      Editable install of te-builder with developer tools (pytest, ruff)
+      and the launcher dependencies (PyYAML, tqdm).
+  - id: setup-list-vs
+    section: setup
+    path: scripts/list-vs.bat
+    label: Setup — list Visual Studio installs + toolset mapping
+    description: |
+      Runs vswhere.exe and prints every Visual Studio installation the
+      builder can use, along with its MSVC platform toolset:
+      VS 2017->v141, VS 2019->v142, VS 2022->v143, VS 2026->v145.
+      Useful before running a build if you have several VS versions side
+      by side and want to confirm which one the auto-detector will pick.
