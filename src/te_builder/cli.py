@@ -23,6 +23,8 @@ import time
 from importlib import resources
 from pathlib import Path
 
+from tqdm import tqdm
+
 from . import __version__
 from .cmake import discover_cmaker
 from .config import Env, ProjectSpec, load_presets
@@ -220,11 +222,11 @@ def _build_with_cmaker(
         return result.returncode
 
     rc = retry_build(attempt, max_retries=project.try_count)
-    return summarize_from_log(
-        returncode=rc,
-        log_file=log_file,
-        project_name=project.name,
-        configuration="cmaker",
+    ok = rc == 0
+    tail = "OK" if ok else f"FAILED (rc={rc}) !!!!!!!!!!"
+    return StatusRow(
+        ok=ok,
+        line=f"{project.name:>15} : {'cmaker':>20} : {tail:>15}",
     )
 
 
@@ -274,49 +276,58 @@ def _build_loop(env: Env) -> tuple[list[StatusRow], int]:
     MSBuild. Iterating project-major keeps the dependency order from the
     preset — e.g. tesseract3-all builds the image libs before leptonica
     before tesseract."""
-    rows: list[StatusRow] = []
-    rc = 0
+    # Pre-scan to build a flat work list so tqdm knows the total upfront.
+    work: list[tuple[ProjectSpec, Path, Path | None, str]] = []
     for project in env.projects:
         project_dir = (env.project_root / project.path).resolve()
         cmaker = discover_cmaker(project_dir, env.project_defaults.cmake_batch)
         if cmaker is not None:
-            _logger.info("build [%s] via cmaker [%s]", project.name, cmaker)
-            row = _build_with_cmaker(env, project, project_dir, cmaker)
+            work.append((project, project_dir, cmaker, "cmaker"))
+        else:
+            for configuration in env.configurations:
+                work.append((project, project_dir, None, configuration))
+
+    rows: list[StatusRow] = []
+    rc = 0
+    with tqdm(
+        total=len(work),
+        unit="build",
+        file=sys.stderr,
+        disable=not sys.stderr.isatty(),
+    ) as bar:
+        for project, project_dir, cmaker, label in work:
+            bar.set_description(f"{project.name} ({label})")
+            if cmaker is not None:
+                _logger.debug("build [%s] via cmaker [%s]", project.name, cmaker)
+                row = _build_with_cmaker(env, project, project_dir, cmaker)
+            else:
+                _logger.debug("build [%s] config=[%s]", project.name, label)
+                cleanup_libs_for_configuration(project_dir, label, env.project_defaults)
+                row = _build_one(env, project, project_dir, label)
+                if row.ok:
+                    copy_libs_for_configuration(project_dir, label, env.project_defaults)
+                    _logger.debug(
+                        "artifacts in %s",
+                        configuration_lib_dir(project_dir, label, env.project_defaults),
+                    )
             rows.append(row)
             if not row.ok:
                 rc = 1
-            continue
-        for configuration in env.configurations:
-            _logger.info(
-                "build [%s] config=[%s] dir=[%s]",
-                project.name,
-                configuration,
-                project_dir,
-            )
-            cleanup_libs_for_configuration(
-                project_dir, configuration, env.project_defaults
-            )
-            row = _build_one(env, project, project_dir, configuration)
-            rows.append(row)
-            if not row.ok:
-                rc = 1
-            if row.ok:
-                copy_libs_for_configuration(
-                    project_dir, configuration, env.project_defaults
-                )
-                _logger.info(
-                    "artifacts in %s",
-                    configuration_lib_dir(
-                        project_dir, configuration, env.project_defaults
-                    ),
-                )
+            tqdm.write(row.line)
+            bar.update(1)
     return rows, rc
 
 
 def _emit_summary(rows: list[StatusRow], elapsed: float) -> None:
+    passed = sum(1 for r in rows if r.ok)
+    failed = len(rows) - passed
+    sep = "─" * 55
+    _logger.info(sep)
     for row in rows:
         _logger.info(row.line)
-    _logger.info("finished in %.2fs", elapsed)
+    _logger.info(sep)
+    outcome = f"all {len(rows)} passed" if not failed else f"{failed}/{len(rows)} FAILED"
+    _logger.info("%s  |  %.1fs", outcome, elapsed)
 
 
 def _print_dry_run_plan(env: Env, preset_paths: list[Path]) -> None:

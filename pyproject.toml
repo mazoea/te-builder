@@ -10,6 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 authors = [{ name = "Mazoea" }]
+dependencies = ["tqdm>=4"]
 
 [project.optional-dependencies]
 dev = [
@@ -18,7 +19,6 @@ dev = [
 ]
 launcher = [
     "PyYAML>=6",
-    "tqdm>=4",
 ]
 
 [project.scripts]

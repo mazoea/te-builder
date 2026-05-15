@@ -1,10 +1,9 @@
 repos:
--   repo: https://github.com/pre-commit/mirrors-autopep8
-    rev: v2.0.2
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.10
     hooks:
-    -   id: autopep8
-        args:
-        - -i
-        - --max-line-length=90
-        # Vendored launcher kept verbatim; ruff also excludes it.
+    -   id: ruff
+        args: [--fix]
+        exclude: ^tools/startme/startme\.py$
+    -   id: ruff-format
         exclude: ^tools/startme/startme\.py$

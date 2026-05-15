@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -13,12 +14,14 @@ from te_builder.cli import (
     _build_one,
     _build_with_cmaker,
     _cmaker_toolset,
+    _emit_summary,
     build_parser,
     main,
     resolve_preset_path,
 )
 from te_builder.config import Env, ProjectSpec
 from te_builder.runner import RunResult
+from te_builder.status import StatusRow
 
 
 def _failed_run(*_args: object, **_kwargs: object) -> RunResult:
@@ -256,3 +259,62 @@ def test_build_loop_msbuild_project_builds_per_configuration(
     assert rc == 0
     assert len(runs) == 2
     assert [row.ok for row in rows] == [True, True]
+
+
+def test_build_with_cmaker_status_is_ok_not_msbuild_error_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """cmaker status is always 'OK' on success, even when the log contains
+    the MSBuild '0 Error(s)' line — so output is consistent across
+    projects whose cmaker.bat does or does not invoke MSBuild directly."""
+    cmaker = tmp_path / "cmaker.bat"
+    cmaker.write_text("@echo off\n", encoding="utf-8")
+    env = Env.defaults()
+    env.log_dir = tmp_path / "logs"
+    project = ProjectSpec(name="leptonica", path="x/")
+
+    def fake_run_with_msbuild_output(
+        cmd: str, *, cwd: object = None, shell: bool = False
+    ) -> RunResult:
+        return RunResult(returncode=0, stdout="0 Error(s)", stderr="", took=0.0)
+
+    monkeypatch.setattr(cli, "run", fake_run_with_msbuild_output)
+    row = _build_with_cmaker(env, project, tmp_path / "x", cmaker)
+
+    assert row.ok
+    assert "OK" in row.line
+    assert "Error(s)" not in row.line
+
+
+def test_build_with_cmaker_failure_line_contains_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmaker = tmp_path / "cmaker.bat"
+    cmaker.write_text("@echo off\n", encoding="utf-8")
+    env = Env.defaults()
+    env.log_dir = tmp_path / "logs"
+    project = ProjectSpec(name="leptonica", path="x/")
+    monkeypatch.setattr(cli, "run", _failed_run)
+    row = _build_with_cmaker(env, project, tmp_path / "x", cmaker)
+    assert not row.ok
+    assert "FAILED" in row.line
+
+
+def test_emit_summary_reports_all_passed(caplog: pytest.LogCaptureFixture) -> None:
+    rows = [
+        StatusRow(ok=True, line="zlib : Release|x64 : 0 Error(s)"),
+        StatusRow(ok=True, line="libpng : Release|x64 : 0 Error(s)"),
+    ]
+    with caplog.at_level(logging.INFO, logger="te_builder.cli"):
+        _emit_summary(rows, elapsed=12.3)
+    assert "all 2 passed" in caplog.text
+
+
+def test_emit_summary_reports_failure_count(caplog: pytest.LogCaptureFixture) -> None:
+    rows = [
+        StatusRow(ok=True, line="zlib : Release|x64 : 0 Error(s)"),
+        StatusRow(ok=False, line="libpng : Release|x64 : FAILED"),
+    ]
+    with caplog.at_level(logging.INFO, logger="te_builder.cli"):
+        _emit_summary(rows, elapsed=5.0)
+    assert "1/2 FAILED" in caplog.text

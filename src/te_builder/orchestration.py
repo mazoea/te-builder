@@ -41,7 +41,7 @@ def copy_libs_for_configuration(
             if not source.is_file():
                 continue
             target = output_dir / source.name
-            _logger.info("copy %s -> %s", source, target)
+            _logger.debug("copy %s -> %s", source, target)
             shutil.copy(str(source), str(target))
 
 
@@ -53,7 +53,7 @@ def cleanup_libs_for_configuration(
         return
     for entry in list(output_dir.iterdir()):
         if entry.is_file():
-            _logger.info("remove %s", entry)
+            _logger.debug("remove %s", entry)
             entry.unlink()
 
 
