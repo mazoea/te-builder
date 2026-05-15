@@ -30,10 +30,9 @@ from .cmake import discover_cmaker
 from .config import Env, ProjectSpec, load_presets
 from .msbuild import discover_sln, validate_configuration
 from .orchestration import (
-    cleanup_libs_for_configuration,
-    configuration_lib_dir,
     copy_libs_for_configuration,
     prepare_log_file,
+    project_lib_dir,
     retry_build,
 )
 from .runner import run
@@ -302,13 +301,12 @@ def _build_loop(env: Env) -> tuple[list[StatusRow], int]:
                 row = _build_with_cmaker(env, project, project_dir, cmaker)
             else:
                 _logger.debug("build [%s] config=[%s]", project.name, label)
-                cleanup_libs_for_configuration(project_dir, label, env.project_defaults)
                 row = _build_one(env, project, project_dir, label)
                 if row.ok:
                     copy_libs_for_configuration(project_dir, label, env.project_defaults)
                     _logger.debug(
                         "artifacts in %s",
-                        configuration_lib_dir(project_dir, label, env.project_defaults),
+                        project_lib_dir(project_dir, env.project_defaults),
                     )
             rows.append(row)
             if not row.ok:
