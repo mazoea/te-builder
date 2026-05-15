@@ -1,11 +1,17 @@
 """Tests for the build-orchestration helpers.
 
-Two legacy bugs are pinned here:
-- `copy_libs` wrote all configurations into one `libs/` directory, so a
-  later configuration silently overwrote an earlier one. We now namespace
-  by configuration.
+Legacy bugs pinned here:
 - The retry loop summed return codes from every attempt and never broke
   on a successful retry. We break on the first success.
+- prepare_log_file must wipe stale logs so summarize_from_log() never
+  reports a previous run's "0 Error(s)" against a failed build.
+
+Layout note: copy_libs_for_configuration writes to a flat libs/ dir.
+te-external solution files emit configuration-suffixed filenames
+(e.g. zlib-debug-mtdll-x64.lib), so Debug and Release artifacts coexist
+without collision, and downstream consumers (libpng, freetype) can link
+against libs/*.lib through junctions without depending on te-builder
+to mirror files into a per-configuration subdir.
 """
 
 from __future__ import annotations
@@ -14,7 +20,6 @@ from pathlib import Path
 
 from te_builder.config import ProjectDefaults
 from te_builder.orchestration import (
-    cleanup_libs_for_configuration,
     copy_libs_for_configuration,
     prepare_log_file,
     retry_build,
@@ -25,55 +30,38 @@ def _fake_project(tmp_path: Path) -> Path:
     project_dir = tmp_path / "fake-lib"
     output = project_dir / "projects" / "output"
     output.mkdir(parents=True)
-    (output / "fake.lib").write_text("a", encoding="utf-8")
-    (output / "fake.dll").write_text("b", encoding="utf-8")
+    (output / "fake-release-mtdll-x64.lib").write_text("a", encoding="utf-8")
+    (output / "fake-release-mtdll-x64.dll").write_text("b", encoding="utf-8")
     return project_dir
 
 
-def test_copy_libs_namespaces_by_configuration(tmp_path: Path) -> None:
+def test_copy_libs_writes_flat(tmp_path: Path) -> None:
     project_dir = _fake_project(tmp_path)
     defaults = ProjectDefaults()
-    copy_libs_for_configuration(project_dir, "Release|x64", defaults)
-    copied = sorted((project_dir / "libs" / "Release-x64").iterdir())
-    assert [path.name for path in copied] == ["fake.dll", "fake.lib"]
+    copy_libs_for_configuration(project_dir, "Release-MTDLL|x64", defaults)
+    copied = sorted((project_dir / "libs").glob("*"))
+    assert [path.name for path in copied] == [
+        "fake-release-mtdll-x64.dll",
+        "fake-release-mtdll-x64.lib",
+    ]
 
 
-def test_copy_libs_also_mirrors_flat(tmp_path: Path) -> None:
-    """te-external project files reference dependency libs via flat
-    libs/*.lib paths (e.g. libpng's AdditionalLibraryDirectories points
-    at libs/zlib via a junction). The flat mirror keeps that consumer
-    working while the per-config subdirs preserve both Release and Debug
-    side by side."""
-    project_dir = _fake_project(tmp_path)
+def test_copy_libs_both_configurations_coexist(tmp_path: Path) -> None:
+    """Configuration-suffixed filenames let Debug and Release coexist in
+    the flat libs/ dir without overwriting each other."""
+    project_dir = tmp_path / "fake-lib"
+    output = project_dir / "projects" / "output"
+    output.mkdir(parents=True)
+    (output / "fake-release-mtdll-x64.lib").write_text("rel", encoding="utf-8")
     defaults = ProjectDefaults()
-    copy_libs_for_configuration(project_dir, "Release|x64", defaults)
-    flat = sorted((project_dir / "libs").glob("*.lib"))
-    assert [path.name for path in flat] == ["fake.lib"]
+    copy_libs_for_configuration(project_dir, "Release-MTDLL|x64", defaults)
 
-
-def test_copy_libs_two_configurations_do_not_collide(tmp_path: Path) -> None:
-    project_dir = _fake_project(tmp_path)
-    defaults = ProjectDefaults()
-    copy_libs_for_configuration(project_dir, "Release|x64", defaults)
-    # rebuild produces new artifacts in the same output dir
-    (project_dir / "projects" / "output" / "fake.dll").write_text(
-        "debug", encoding="utf-8"
-    )
+    (output / "fake-debug-mtdll-x64.lib").write_text("dbg", encoding="utf-8")
     copy_libs_for_configuration(project_dir, "Debug-MTDLL|x64", defaults)
-    release_dll = (project_dir / "libs" / "Release-x64" / "fake.dll").read_text()
-    debug_dll = (project_dir / "libs" / "Debug-MTDLL-x64" / "fake.dll").read_text()
-    assert release_dll == "b"
-    assert debug_dll == "debug"
 
-
-def test_cleanup_libs_scoped_to_configuration(tmp_path: Path) -> None:
-    project_dir = _fake_project(tmp_path)
-    defaults = ProjectDefaults()
-    copy_libs_for_configuration(project_dir, "Release|x64", defaults)
-    copy_libs_for_configuration(project_dir, "Debug-MTDLL|x64", defaults)
-    cleanup_libs_for_configuration(project_dir, "Release|x64", defaults)
-    assert not (project_dir / "libs" / "Release-x64" / "fake.lib").exists()
-    assert (project_dir / "libs" / "Debug-MTDLL-x64" / "fake.lib").exists()
+    libs = project_dir / "libs"
+    assert (libs / "fake-release-mtdll-x64.lib").read_text() == "rel"
+    assert (libs / "fake-debug-mtdll-x64.lib").read_text() == "dbg"
 
 
 def test_retry_build_breaks_on_first_success() -> None:

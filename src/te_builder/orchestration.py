@@ -1,10 +1,12 @@
 """Build orchestration helpers used by the CLI loop.
 
-The legacy code mixed three responsibilities in one block: cleaning up the
-previous configuration's output, dispatching to MSBuild or cmake, and
-copying the result back into a shared `libs/` directory. The shared dir
-made it impossible to keep both Release and Debug-MTDLL outputs around at
-the same time. We now namespace by configuration.
+te-external solution files emit configuration-suffixed artifact names
+(e.g. zlib-debug-mtdll-x64.lib vs zlib-release-mtdll-x64.lib), so Debug
+and Release outputs already coexist safely in a single flat libs/ dir.
+Downstream consumers (libpng, freetype, ...) reference dependencies via
+flat libs/<dep>/<name>.lib paths through junctions, so the flat layout
+is the contract te-builder must preserve — without it those consumers
+fail to link unless te-builder is re-run.
 """
 
 from __future__ import annotations
@@ -19,25 +21,16 @@ from .config import ProjectDefaults
 _logger = logging.getLogger(__name__)
 
 
-def _configuration_dir_name(configuration: str) -> str:
-    """`Release|x64` is not a legal directory name on Windows. We replace
-    the pipe with a dash, matching the log-file naming used elsewhere."""
-    return configuration.replace("|", "-")
-
-
-def configuration_lib_dir(
-    project_dir: Path, configuration: str, defaults: ProjectDefaults
-) -> Path:
-    return project_dir / defaults.output_libs / _configuration_dir_name(configuration)
+def project_lib_dir(project_dir: Path, defaults: ProjectDefaults) -> Path:
+    return project_dir / defaults.output_libs
 
 
 def copy_libs_for_configuration(
     project_dir: Path, configuration: str, defaults: ProjectDefaults
 ) -> None:
-    output_dir = configuration_lib_dir(project_dir, configuration, defaults)
+    del configuration  # output filenames already encode the configuration
+    output_dir = project_lib_dir(project_dir, defaults)
     output_dir.mkdir(parents=True, exist_ok=True)
-    flat_dir = project_dir / defaults.output_libs
-    flat_dir.mkdir(parents=True, exist_ok=True)
     for pattern in defaults.copy:
         for source in project_dir.glob(pattern):
             if not source.is_file():
@@ -45,19 +38,6 @@ def copy_libs_for_configuration(
             target = output_dir / source.name
             _logger.debug("copy %s -> %s", source, target)
             shutil.copy(str(source), str(target))
-            shutil.copy(str(source), str(flat_dir / source.name))
-
-
-def cleanup_libs_for_configuration(
-    project_dir: Path, configuration: str, defaults: ProjectDefaults
-) -> None:
-    output_dir = configuration_lib_dir(project_dir, configuration, defaults)
-    if not output_dir.exists():
-        return
-    for entry in list(output_dir.iterdir()):
-        if entry.is_file():
-            _logger.debug("remove %s", entry)
-            entry.unlink()
 
 
 def prepare_log_file(log_file: Path) -> None:
