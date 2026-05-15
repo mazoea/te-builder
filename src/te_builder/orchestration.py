@@ -36,6 +36,8 @@ def copy_libs_for_configuration(
 ) -> None:
     output_dir = configuration_lib_dir(project_dir, configuration, defaults)
     output_dir.mkdir(parents=True, exist_ok=True)
+    flat_dir = project_dir / defaults.output_libs
+    flat_dir.mkdir(parents=True, exist_ok=True)
     for pattern in defaults.copy:
         for source in project_dir.glob(pattern):
             if not source.is_file():
@@ -43,6 +45,7 @@ def copy_libs_for_configuration(
             target = output_dir / source.name
             _logger.debug("copy %s -> %s", source, target)
             shutil.copy(str(source), str(target))
+            shutil.copy(str(source), str(flat_dir / source.name))
 
 
 def cleanup_libs_for_configuration(

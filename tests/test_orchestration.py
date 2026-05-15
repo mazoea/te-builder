@@ -38,6 +38,19 @@ def test_copy_libs_namespaces_by_configuration(tmp_path: Path) -> None:
     assert [path.name for path in copied] == ["fake.dll", "fake.lib"]
 
 
+def test_copy_libs_also_mirrors_flat(tmp_path: Path) -> None:
+    """te-external project files reference dependency libs via flat
+    libs/*.lib paths (e.g. libpng's AdditionalLibraryDirectories points
+    at libs/zlib via a junction). The flat mirror keeps that consumer
+    working while the per-config subdirs preserve both Release and Debug
+    side by side."""
+    project_dir = _fake_project(tmp_path)
+    defaults = ProjectDefaults()
+    copy_libs_for_configuration(project_dir, "Release|x64", defaults)
+    flat = sorted((project_dir / "libs").glob("*.lib"))
+    assert [path.name for path in flat] == ["fake.lib"]
+
+
 def test_copy_libs_two_configurations_do_not_collide(tmp_path: Path) -> None:
     project_dir = _fake_project(tmp_path)
     defaults = ProjectDefaults()
