@@ -24,7 +24,8 @@ from importlib import resources
 from pathlib import Path
 
 from . import __version__
-from .config import Env, ProjectSpec, load_preset
+from .cmake import discover_cmaker
+from .config import Env, ProjectSpec, load_presets
 from .msbuild import discover_sln, validate_configuration
 from .orchestration import (
     cleanup_libs_for_configuration,
@@ -87,7 +88,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--preset",
-        help="Preset name (e.g. externals.basic) or path to a custom JSON preset.",
+        action="append",
+        metavar="NAME_OR_PATH",
+        help="Preset name (e.g. externals.basic) or path to a custom JSON "
+        "preset. Repeat to merge several left-to-right — later presets "
+        "override earlier ones, so a config-only overlay like "
+        "minimal_configurations composes onto a project preset.",
     )
     parser.add_argument(
         "--project-root",
@@ -184,6 +190,44 @@ def _msbuild_command(
     )
 
 
+def _cmaker_toolset(env: Env) -> str:
+    """The bare toolset (`v145`) pulled out of `env.msvc_toolset`
+    (`/p:PlatformToolset=v145`) to hand cmaker.bat via VSTOOLSET, so the
+    generated projects match the toolset MSBuild will use afterwards."""
+    return env.msvc_toolset.rsplit("=", 1)[-1]
+
+
+def _build_with_cmaker(
+    env: Env, project: ProjectSpec, project_dir: Path, cmaker: Path
+) -> StatusRow:
+    """cmaker.bat is the whole build for the CMake-based projects: it
+    configures and builds its own fixed configuration set in one shot, so
+    te-builder invokes it once and reports the result. The preset's
+    `configurations` do not apply here — cmaker.bat owns that choice and
+    manages the project's own `libs/` directory."""
+    log_file = env.log_dir / f"{project.name}.cmaker.log"
+    prepare_log_file(log_file)
+    cmd = (
+        f'{env.cmd_prefix}set "VSTOOLSET={_cmaker_toolset(env)}" '
+        f'&& "{cmaker}" nopause{env.cmd_suffix}'
+    )
+
+    def attempt() -> int:
+        result = run(cmd, cwd=cmaker.parent, shell=True)
+        log_file.write_text(
+            result.stdout + result.stderr, encoding="utf-8", errors="replace"
+        )
+        return result.returncode
+
+    rc = retry_build(attempt, max_retries=project.try_count)
+    return summarize_from_log(
+        returncode=rc,
+        log_file=log_file,
+        project_name=project.name,
+        configuration="cmaker",
+    )
+
+
 def _build_one(
     env: Env,
     project: ProjectSpec,
@@ -224,11 +268,25 @@ def _build_one(
 
 
 def _build_loop(env: Env) -> tuple[list[StatusRow], int]:
+    """Build every project in preset order. A project that ships a
+    cmaker.bat is built by it once, end-to-end; everything else (the
+    hand-curated te-external libraries) is built per configuration via
+    MSBuild. Iterating project-major keeps the dependency order from the
+    preset — e.g. tesseract3-all builds the image libs before leptonica
+    before tesseract."""
     rows: list[StatusRow] = []
     rc = 0
-    for configuration in env.configurations:
-        for project in env.projects:
-            project_dir = (env.project_root / project.path).resolve()
+    for project in env.projects:
+        project_dir = (env.project_root / project.path).resolve()
+        cmaker = discover_cmaker(project_dir, env.project_defaults.cmake_batch)
+        if cmaker is not None:
+            _logger.info("build [%s] via cmaker [%s]", project.name, cmaker)
+            row = _build_with_cmaker(env, project, project_dir, cmaker)
+            rows.append(row)
+            if not row.ok:
+                rc = 1
+            continue
+        for configuration in env.configurations:
             _logger.info(
                 "build [%s] config=[%s] dir=[%s]",
                 project.name,
@@ -261,16 +319,24 @@ def _emit_summary(rows: list[StatusRow], elapsed: float) -> None:
     _logger.info("finished in %.2fs", elapsed)
 
 
-def _print_dry_run_plan(env: Env, preset_path: Path) -> None:
+def _print_dry_run_plan(env: Env, preset_paths: list[Path]) -> None:
     out = sys.stdout
-    out.write(f"Preset: {preset_path}\n")
+    if len(preset_paths) == 1:
+        out.write(f"Preset: {preset_paths[0]}\n")
+    else:
+        out.write("Presets (merged left-to-right):\n")
+        for preset_path in preset_paths:
+            out.write(f"  - {preset_path}\n")
     out.write(f"Project root: {env.project_root}\n")
-    out.write("Configurations:\n")
+    out.write("Configurations (MSBuild-driven projects only):\n")
     for cfg in env.configurations:
         out.write(f"  - {cfg}\n")
     out.write("Projects:\n")
     for project in env.projects:
-        out.write(f"  - {project.name} ({project.path})\n")
+        project_dir = (env.project_root / project.path).resolve()
+        cmaker = discover_cmaker(project_dir, env.project_defaults.cmake_batch)
+        suffix = "  [cmaker — builds its own configurations]" if cmaker else ""
+        out.write(f"  - {project.name} ({project.path}){suffix}\n")
     out.flush()
 
 
@@ -285,18 +351,18 @@ def main(argv: list[str] | None = None) -> int:
         _print_preset_listing()
         return 2
     try:
-        preset_path = resolve_preset_path(args.preset)
+        preset_paths = [resolve_preset_path(name) for name in args.preset]
     except FileNotFoundError as exc:
         _logger.error("%s", exc)
         _print_preset_listing()
         return 2
 
-    env = load_preset(preset_path)
+    env = load_presets(preset_paths)
     env = _apply_overrides(env, args)
     env.log_dir.mkdir(parents=True, exist_ok=True)
 
     if args.dry_run:
-        _print_dry_run_plan(env, preset_path)
+        _print_dry_run_plan(env, preset_paths)
         return 0
 
     start = time.perf_counter()

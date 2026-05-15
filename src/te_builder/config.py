@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -60,9 +61,7 @@ class ProjectSpec:
 class ProjectDefaults:
     cmake_batch: str = "cmaker.bat"
     solution_path: str = "projects"
-    # `*.sln*` matches both the legacy `.sln` text format and the `.slnx`
-    # XML format CMake + VS 2022/2026 generate.
-    solution: str = "*.sln*"
+    solution: str = "*.sln"
     output_libs: str = "libs"
     parallel: int = 2
     copy: tuple[str, ...] = field(default_factory=lambda: _DEFAULT_COPY_GLOBS)
@@ -127,12 +126,10 @@ def _parse_project(raw: dict[str, Any]) -> ProjectSpec:
     )
 
 
-def load_preset(path: str | Path) -> Env:
-    """Load a JSON preset and return the merged `Env`.
-
-    Raises `FileNotFoundError` if the path does not exist — no silent
-    fallbacks. The base layer is `Env.defaults()`; preset values override.
-    """
+def _read_preset_json(path: str | Path) -> dict[str, Any]:
+    """Read one preset file. Raises `FileNotFoundError` if it does not
+    exist and `ValueError` if it is not a JSON object — no silent
+    fallbacks."""
     preset_path = Path(path)
     if not preset_path.is_file():
         raise FileNotFoundError(f"preset file not found: {preset_path}")
@@ -140,7 +137,12 @@ def load_preset(path: str | Path) -> Env:
         raw = json.load(handle)
     if not isinstance(raw, dict):
         raise ValueError(f"preset must be a JSON object, got {type(raw).__name__}")
+    return raw
 
+
+def _build_env(raw: dict[str, Any]) -> Env:
+    """Build an `Env` from an already-merged raw preset dict. The base
+    layer is `Env.defaults()`; preset values override."""
     env = Env.defaults()
     if "projects" in raw:
         env.projects = [_parse_project(item) for item in raw["projects"]]
@@ -150,5 +152,29 @@ def load_preset(path: str | Path) -> Env:
         env.lines_to_show = int(raw["lines_to_show"])
     if "name" in raw:
         env.name = str(raw["name"])
-    _logger.debug("loaded preset %s with %d projects", preset_path, len(env.projects))
+    return env
+
+
+def load_preset(path: str | Path) -> Env:
+    """Load a single JSON preset and return the merged `Env`."""
+    env = _build_env(_read_preset_json(path))
+    _logger.debug("loaded preset %s with %d projects", path, len(env.projects))
+    return env
+
+
+def load_presets(paths: Sequence[str | Path]) -> Env:
+    """Load and merge several JSON presets left-to-right, then return the
+    merged `Env`. Later presets override earlier ones with the same keys
+    (lists and scalars wholesale, nested dicts recursively) — the same
+    semantics as the legacy multiple-`--settings` flags. This is how a
+    config-only overlay such as `minimal_configurations` composes onto a
+    project preset.
+    """
+    if not paths:
+        raise ValueError("load_presets requires at least one preset path")
+    merged: dict[str, Any] = {}
+    for path in paths:
+        extend_dict(merged, _read_preset_json(path))
+    env = _build_env(merged)
+    _logger.debug("loaded %d preset(s) with %d projects", len(paths), len(env.projects))
     return env

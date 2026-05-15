@@ -7,7 +7,22 @@ from pathlib import Path
 
 import pytest
 
-from te_builder.cli import build_parser, main, resolve_preset_path
+from te_builder import cli
+from te_builder.cli import (
+    _build_loop,
+    _build_one,
+    _build_with_cmaker,
+    _cmaker_toolset,
+    build_parser,
+    main,
+    resolve_preset_path,
+)
+from te_builder.config import Env, ProjectSpec
+from te_builder.runner import RunResult
+
+
+def _failed_run(*_args: object, **_kwargs: object) -> RunResult:
+    return RunResult(returncode=1, stdout="", stderr="", took=0.0)
 
 
 def test_parser_help_lists_main_flags(capsys: pytest.CaptureFixture[str]) -> None:
@@ -94,3 +109,150 @@ def test_main_accepts_valid_configuration_format(
         ]
     )
     assert rc == 0
+
+
+def test_parser_accepts_repeated_preset() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        ["--preset", "externals.basic", "--preset", "minimal_configurations"]
+    )
+    assert args.preset == ["externals.basic", "minimal_configurations"]
+
+
+def test_main_merges_preset_overlay_in_dry_run(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """externals.basic supplies the projects; minimal_configurations
+    overlays the MT configurations on top."""
+    rc = main(
+        [
+            "--preset",
+            "externals.basic",
+            "--preset",
+            "minimal_configurations",
+            "--dry-run",
+        ]
+    )
+    assert rc == 0
+    combined = "".join(capsys.readouterr())
+    assert "zlib" in combined
+    assert "Debug-MT|x64" in combined
+
+
+def test_cmaker_toolset_extracts_bare_version() -> None:
+    env = Env.defaults()
+    env.msvc_toolset = "/p:PlatformToolset=v145"
+    assert _cmaker_toolset(env) == "v145"
+
+
+def test_build_one_reports_no_solution(tmp_path: Path) -> None:
+    env = Env.defaults()
+    env.log_dir = tmp_path / "logs"
+    project = ProjectSpec(name="x", path="proj/")
+    project_dir = tmp_path / "proj"
+    (project_dir / "projects").mkdir(parents=True)
+    row = _build_one(env, project, project_dir, "Release|x64")
+    assert not row.ok
+    assert "NO SOLUTION" in row.line
+
+
+def test_build_with_cmaker_runs_cmaker_and_reports_ok(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmaker = tmp_path / "cmaker.bat"
+    cmaker.write_text("@echo off\n", encoding="utf-8")
+    env = Env.defaults()
+    env.log_dir = tmp_path / "logs"
+    project = ProjectSpec(name="leptonica", path="x/")
+
+    calls: dict[str, object] = {}
+
+    def fake_run(cmd: str, *, cwd: object = None, shell: bool = False) -> RunResult:
+        calls["cmd"] = cmd
+        calls["cwd"] = cwd
+        return RunResult(returncode=0, stdout="0 Error(s)", stderr="", took=0.0)
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    row = _build_with_cmaker(env, project, tmp_path / "x", cmaker)
+
+    assert row.ok
+    assert "leptonica" in row.line
+    assert "VSTOOLSET" in str(calls["cmd"])
+    assert str(cmaker) in str(calls["cmd"])
+    assert calls["cwd"] == cmaker.parent
+
+
+def test_build_with_cmaker_reports_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmaker = tmp_path / "cmaker.bat"
+    cmaker.write_text("@echo off\n", encoding="utf-8")
+    env = Env.defaults()
+    env.log_dir = tmp_path / "logs"
+    project = ProjectSpec(name="leptonica", path="x/")
+    monkeypatch.setattr(cli, "run", _failed_run)
+    row = _build_with_cmaker(env, project, tmp_path / "x", cmaker)
+    assert not row.ok
+
+
+def test_build_loop_runs_cmaker_once_regardless_of_configurations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A project shipping cmaker.bat is built once end-to-end — cmaker.bat
+    owns the configuration set, so the preset's two configurations do not
+    each trigger a build."""
+    project_dir = tmp_path / "ext" / "leptonica"
+    project_dir.mkdir(parents=True)
+    (tmp_path / "ext" / "cmaker.bat").write_text("@echo off\n", encoding="utf-8")
+
+    env = Env.defaults()
+    env.project_root = tmp_path
+    env.log_dir = tmp_path / "logs"
+    env.configurations = ["Debug|x64", "RelWithDebInfo|x64"]
+    env.projects = [ProjectSpec(name="leptonica", path="ext/leptonica/")]
+
+    runs: list[object] = []
+
+    def fake_run(cmd: str, *, cwd: object = None, shell: bool = False) -> RunResult:
+        runs.append(cmd)
+        return RunResult(returncode=0, stdout="0 Error(s)", stderr="", took=0.0)
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    rows, rc = _build_loop(env)
+
+    assert rc == 0
+    assert len(runs) == 1
+    assert "cmaker.bat" in str(runs[0])
+    assert [row.ok for row in rows] == [True]
+
+
+def test_build_loop_msbuild_project_builds_per_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A project without a cmaker.bat is driven through MSBuild once per
+    configuration."""
+    project_dir = tmp_path / "ext" / "zlib"
+    (project_dir / "projects").mkdir(parents=True)
+
+    env = Env.defaults()
+    env.project_root = tmp_path
+    env.log_dir = tmp_path / "logs"
+    env.configurations = ["Debug-MTDLL|x64", "Release-MTDLL|x64"]
+    env.projects = [ProjectSpec(name="zlib", path="ext/zlib/")]
+
+    monkeypatch.setattr(
+        cli, "discover_sln", lambda *a, **k: project_dir / "projects" / "project.sln"
+    )
+    monkeypatch.setattr(cli, "validate_configuration", lambda *a, **k: True)
+    runs: list[object] = []
+
+    def fake_run(cmd: str, *, cwd: object = None, shell: bool = False) -> RunResult:
+        runs.append(cmd)
+        return RunResult(returncode=0, stdout="0 Error(s)", stderr="", took=0.0)
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    rows, rc = _build_loop(env)
+
+    assert rc == 0
+    assert len(runs) == 2
+    assert [row.ok for row in rows] == [True, True]
