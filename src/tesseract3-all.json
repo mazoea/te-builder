@@ -1,0 +1,37 @@
+{
+    "projects": [
+        {
+            "name": "zlib",
+            "path": "te-external/zlib/"
+        },
+        {
+            "name": "freetype",
+            "path": "te-external/freetype/"
+        },
+        {
+            "name": "libtiff",
+            "path": "te-external/libtiff/"
+        },
+        {
+            "name": "libpng",
+            "path": "te-external/libpng/"
+        },
+        {
+            "name": "jpeg",
+            "path": "te-external/jpeg/"
+        },
+        {
+            "name": "giflib",
+            "path": "te-external/giflib/"
+        },
+        {
+            "name": "leptonica",
+            "path": "te-external-leptonica/leptonica/"
+        },
+        {
+            "name": "tesseract",
+            "path": "te-external-tesseract/tesseract/",
+            "try": 3
+        }
+    ]
+}

@@ -1,0 +1,13 @@
+{
+    "projects": [
+        {
+            "name": "leptonica",
+            "path": "te-external-leptonica/leptonica/"
+        },
+        {
+            "name": "tesseract",
+            "path": "te-external-tesseract/tesseract/",
+            "try": 3
+        }
+    ]
+}

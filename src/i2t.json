@@ -1,0 +1,8 @@
+{
+    "projects": [
+        {
+            "name": "c-image-to-text",
+            "path": "c++image-to-text/"
+        }
+    ]
+}
