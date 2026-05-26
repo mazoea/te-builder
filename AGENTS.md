@@ -4,7 +4,7 @@
 ## Setup & Commands
 Keep these names so agents can rely on them across repos:
 
-- Run entry:      `scripts\startme.bat nopause`
+- Run entry for humans:      `scripts\startme.bat`
 - Single test:    `pytest path/to/test_x.py::test_y -q`
 - Lint + format:  `pre-commit run --all-files`
 - C++ build:      `cmaker.continue.bat nopause`       *(CI: `build-scripts/ci.build.u22.bat nopause`)*
