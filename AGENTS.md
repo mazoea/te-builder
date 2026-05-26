@@ -41,7 +41,7 @@ If you add or rename anything under `tools/`, update `scripts/startme.bat` in th
 ## Agent conduct
 - **May run without asking**: tests, linters, formatters, read-only git (`status`, `diff`, `log`), file reads, greps, builds.
 - **Must ask before**: installing deps, editing `requirements.txt` / `CMakeLists.txt`, network calls, any `git commit` / `push` / `tag`, deleting files, touching `.env*` or `secrets/`, modifying `third_party/**`.
-- Never bypass hooks (`--no-verify`, `--no-gpg-sign`).
+- Never bypass hooks (`--no-verify`) or disable commit signing (`--no-gpg-sign`).
 - Never amend or force-push to a protected branch.
 - When stuck, stop and ask. Do not invent APIs or file paths.
 - At the end of every task, post a short summary: plan, what changed, test results.
