@@ -1,9 +1,13 @@
 repos:
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.10
+    rev: v0.15.14
     hooks:
     -   id: ruff
         args: [--fix]
         exclude: ^tools/startme/startme\.py$
     -   id: ruff-format
         exclude: ^tools/startme/startme\.py$
+-   repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+    -   id: gitleaks
