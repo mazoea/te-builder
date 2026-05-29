@@ -14,12 +14,20 @@ session is a TTY and only then sets `interactive=True`. CI pipelines that
 do not pass `--msvc-toolset` therefore get the highest detected toolset
 without blocking on a prompt.
 
-Run `python -m te_builder.vs_detect` to print a one-line summary per
-install — wired into `scripts/list-vs.bat`.
+Two CLI modes share the same detection pipeline:
+
+- `python -m te_builder.vs_detect` (no flag) prints a one-line summary per
+  install — wired into `scripts/list-vs.bat`.
+- `python -m te_builder.vs_detect --toolset` prints only the selected
+  toolset short name to stdout (exit 0) or nothing on stdout (exit 1) if
+  no install is detected. Sibling repos (te-external-leptonica's
+  `cmaker.bat`) shell out to this mode and apply their own fallback when
+  the script is unavailable.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import os
@@ -168,11 +176,38 @@ def _format_install(install: VsInstall) -> str:
     )
 
 
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="te_builder.vs_detect",
+        description="List Visual Studio installs (default) or print the "
+        "selected MSVC platform toolset short name (--toolset).",
+    )
+    parser.add_argument(
+        "--toolset",
+        action="store_true",
+        help="Print only the highest-detected toolset short name (e.g. "
+        "v145) to stdout and exit 0; exit 1 with empty stdout if no "
+        "install is found, so shell callers can apply their own fallback.",
+    )
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Entry for `python -m te_builder.vs_detect` and scripts/list-vs.bat."""
+    """Entry for `python -m te_builder.vs_detect`.
+
+    Default mode lists installs (used by scripts/list-vs.bat). `--toolset`
+    is the machine-readable mode consumed by sibling repos' build scripts.
+    """
     logging.basicConfig(level=logging.INFO, format="%(levelname).4s %(message)s")
-    del argv  # no flags yet — this is intentionally a zero-arg listing tool
+    args = _build_arg_parser().parse_args(argv)
     installs = detect_installs()
+    if args.toolset:
+        chosen = select_toolset(installs, interactive=False)
+        if chosen is None:
+            return 1
+        sys.stdout.write(chosen + "\n")
+        sys.stdout.flush()
+        return 0
     if not installs:
         sys.stderr.write(
             "No Visual Studio installations detected. "
