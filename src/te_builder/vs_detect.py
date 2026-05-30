@@ -14,15 +14,9 @@ session is a TTY and only then sets `interactive=True`. CI pipelines that
 do not pass `--msvc-toolset` therefore get the highest detected toolset
 without blocking on a prompt.
 
-Two CLI modes share the same detection pipeline:
-
-- `python -m te_builder.vs_detect` (no flag) prints a one-line summary per
-  install — wired into `scripts/list-vs.bat`.
-- `python -m te_builder.vs_detect --toolset` prints only the selected
-  toolset short name to stdout (exit 0) or nothing on stdout (exit 1) if
-  no install is detected. Sibling repos (te-external-leptonica's
-  `cmaker.bat`) shell out to this mode and apply their own fallback when
-  the script is unavailable.
+CLI modes:
+- `python -m te_builder.vs_detect`             # listing (wired into list-vs.bat)
+- `python -m te_builder.vs_detect --toolset`   # one-line short name for shell capture
 """
 
 from __future__ import annotations
@@ -46,10 +40,8 @@ _TOOLSET_BY_MAJOR: dict[str, str] = {
     "18": "v145",
 }
 
-# Single source of truth for what `--toolset` may emit; shell callers (e.g.
-# te-external-leptonica's cmaker.bat) rely on this contract to skip their
-# own re-validation. Keep this derived from _TOOLSET_BY_MAJOR so a new
-# entry in the mapping is automatically permitted by the guard.
+# Contract: `--toolset` only emits values in this set. Shell callers rely
+# on it to skip their own re-validation.
 KNOWN_TOOLSETS: frozenset[str] = frozenset(_TOOLSET_BY_MAJOR.values())
 
 
@@ -212,10 +204,6 @@ def main(argv: list[str] | None = None) -> int:
         if chosen is None:
             return 1
         if chosen not in KNOWN_TOOLSETS:
-            # Defensive: select_toolset only returns values from the mapping,
-            # so this can only fire on an internal regression. Exit non-zero
-            # with empty stdout so shell callers fall back instead of feeding
-            # a bogus value into `cmake -T`.
             _logger.error("internal: %r not in KNOWN_TOOLSETS", chosen)
             return 1
         sys.stdout.write(chosen + "\n")
