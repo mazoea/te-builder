@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from te_builder.vs_detect import (
+    KNOWN_TOOLSETS,
     VsInstall,
     main,
     parse_vswhere_output,
@@ -168,3 +169,25 @@ def test_main_default_lists_installs(
     assert rc == 0
     assert "Visual Studio Enterprise 2026" in captured.out
     assert "v145" in captured.out
+
+
+def test_known_toolsets_matches_mapping_values() -> None:
+    """KNOWN_TOOLSETS is the contract shell consumers rely on (cmaker.bat
+    skips its own re-validation). It must stay in lockstep with the values
+    in _TOOLSET_BY_MAJOR — anything else would be a silent regression."""
+    assert frozenset({"v141", "v142", "v143", "v145"}) == KNOWN_TOOLSETS
+
+
+def test_main_toolset_emits_only_known_value(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Whatever vs_detect prints on --toolset must be in KNOWN_TOOLSETS, so
+    cmaker.bat can drop its own regex guard and trust this contract."""
+    monkeypatch.setattr(
+        "te_builder.vs_detect.detect_installs",
+        lambda: parse_vswhere_output(_FAKE_VSWHERE),
+    )
+    rc = main(["--toolset"])
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert captured.out.strip() in KNOWN_TOOLSETS

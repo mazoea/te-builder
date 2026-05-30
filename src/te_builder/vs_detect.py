@@ -46,6 +46,12 @@ _TOOLSET_BY_MAJOR: dict[str, str] = {
     "18": "v145",
 }
 
+# Single source of truth for what `--toolset` may emit; shell callers (e.g.
+# te-external-leptonica's cmaker.bat) rely on this contract to skip their
+# own re-validation. Keep this derived from _TOOLSET_BY_MAJOR so a new
+# entry in the mapping is automatically permitted by the guard.
+KNOWN_TOOLSETS: frozenset[str] = frozenset(_TOOLSET_BY_MAJOR.values())
+
 
 @dataclass(frozen=True)
 class VsInstall:
@@ -204,6 +210,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.toolset:
         chosen = select_toolset(installs, interactive=False)
         if chosen is None:
+            return 1
+        if chosen not in KNOWN_TOOLSETS:
+            # Defensive: select_toolset only returns values from the mapping,
+            # so this can only fire on an internal regression. Exit non-zero
+            # with empty stdout so shell callers fall back instead of feeding
+            # a bogus value into `cmake -T`.
+            _logger.error("internal: %r not in KNOWN_TOOLSETS", chosen)
             return 1
         sys.stdout.write(chosen + "\n")
         sys.stdout.flush()
