@@ -1,18 +1,6 @@
-"""Detect installed Visual Studio versions and pick a toolset.
+"""Detect Visual Studio installs and pick an MSVC platform toolset.
 
-Wraps Microsoft's `vswhere.exe` (shipped with the VS Installer) to discover
-local installations. Each install is mapped to its MSVC platform toolset:
-
-    VS 2017 (15.x) -> v141
-    VS 2019 (16.x) -> v142
-    VS 2022 (17.x) -> v143
-    VS 2026 (18.x) -> v145   (v144 is intentionally skipped by Microsoft)
-
-`select_toolset()` is the single decision point the CLI calls. It is
-non-interactive by default; the caller (cli.main) decides whether the
-session is a TTY and only then sets `interactive=True`. CI pipelines that
-do not pass `--msvc-toolset` therefore get the highest detected toolset
-without blocking on a prompt.
+VS 15->v141, 16->v142, 17->v143, 18->v145 (Microsoft skipped v144).
 
 CLI modes:
 - `python -m te_builder.vs_detect`             # listing (wired into list-vs.bat)
@@ -40,8 +28,7 @@ _TOOLSET_BY_MAJOR: dict[str, str] = {
     "18": "v145",
 }
 
-# Contract: `--toolset` only emits values in this set. Shell callers rely
-# on it to skip their own re-validation.
+# Contract: `--toolset` only emits values in this set.
 KNOWN_TOOLSETS: frozenset[str] = frozenset(_TOOLSET_BY_MAJOR.values())
 
 
@@ -183,19 +170,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--toolset",
         action="store_true",
-        help="Print only the highest-detected toolset short name (e.g. "
-        "v145) to stdout and exit 0; exit 1 with empty stdout if no "
-        "install is found, so shell callers can apply their own fallback.",
+        help="Print the highest-detected toolset short name to stdout "
+        "(exit 0); empty stdout + exit 1 if none.",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry for `python -m te_builder.vs_detect`.
-
-    Default mode lists installs (used by scripts/list-vs.bat). `--toolset`
-    is the machine-readable mode consumed by sibling repos' build scripts.
-    """
     logging.basicConfig(level=logging.INFO, format="%(levelname).4s %(message)s")
     args = _build_arg_parser().parse_args(argv)
     installs = detect_installs()

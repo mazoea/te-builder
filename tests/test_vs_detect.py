@@ -130,9 +130,6 @@ def test_select_toolset_blank_prompt_uses_default(blank: str) -> None:
 def test_main_toolset_prints_highest_detected(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """`--toolset` is the machine-readable mode shell scripts in sibling
-    repos rely on. Stdout must hold only the toolset short name so a `for /f`
-    or `$(...)` capture binds cleanly."""
     monkeypatch.setattr(
         "te_builder.vs_detect.detect_installs",
         lambda: parse_vswhere_output(_FAKE_VSWHERE),
@@ -146,9 +143,6 @@ def test_main_toolset_prints_highest_detected(
 def test_main_toolset_no_installs_exits_nonzero_with_empty_stdout(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A consumer in cmaker.bat applies its own fallback when nothing is
-    detected. Exit 1 + empty stdout keeps that contract — caller checks
-    errorlevel without parsing prose."""
     monkeypatch.setattr("te_builder.vs_detect.detect_installs", lambda: [])
     rc = main(["--toolset"])
     captured = capsys.readouterr()
@@ -159,7 +153,6 @@ def test_main_toolset_no_installs_exits_nonzero_with_empty_stdout(
 def test_main_default_lists_installs(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """No flag preserves the human-readable listing wired into list-vs.bat."""
     monkeypatch.setattr(
         "te_builder.vs_detect.detect_installs",
         lambda: parse_vswhere_output(_FAKE_VSWHERE),
@@ -172,17 +165,12 @@ def test_main_default_lists_installs(
 
 
 def test_known_toolsets_matches_mapping_values() -> None:
-    """KNOWN_TOOLSETS is the contract shell consumers rely on (cmaker.bat
-    skips its own re-validation). It must stay in lockstep with the values
-    in _TOOLSET_BY_MAJOR — anything else would be a silent regression."""
     assert frozenset({"v141", "v142", "v143", "v145"}) == KNOWN_TOOLSETS
 
 
 def test_main_toolset_emits_only_known_value(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Whatever vs_detect prints on --toolset must be in KNOWN_TOOLSETS, so
-    cmaker.bat can drop its own regex guard and trust this contract."""
     monkeypatch.setattr(
         "te_builder.vs_detect.detect_installs",
         lambda: parse_vswhere_output(_FAKE_VSWHERE),
