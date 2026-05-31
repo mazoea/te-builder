@@ -19,7 +19,9 @@ from pathlib import Path
 import pytest
 
 from te_builder.vs_detect import (
+    KNOWN_TOOLSETS,
     VsInstall,
+    main,
     parse_vswhere_output,
     select_toolset,
     toolset_for_version,
@@ -123,3 +125,57 @@ def test_select_toolset_blank_prompt_uses_default(blank: str) -> None:
     installs = parse_vswhere_output(_FAKE_VSWHERE)
     chosen = select_toolset(installs, interactive=True, prompt=lambda _msg: blank)
     assert chosen == "v145"
+
+
+def test_main_toolset_prints_highest_detected(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        "te_builder.vs_detect.detect_installs",
+        lambda: parse_vswhere_output(_FAKE_VSWHERE),
+    )
+    rc = main(["--toolset"])
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert captured.out == "v145\n"
+
+
+def test_main_toolset_no_installs_exits_nonzero_with_empty_stdout(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("te_builder.vs_detect.detect_installs", lambda: [])
+    rc = main(["--toolset"])
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert captured.out == ""
+
+
+def test_main_default_lists_installs(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        "te_builder.vs_detect.detect_installs",
+        lambda: parse_vswhere_output(_FAKE_VSWHERE),
+    )
+    rc = main([])
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "Visual Studio Enterprise 2026" in captured.out
+    assert "v145" in captured.out
+
+
+def test_known_toolsets_matches_mapping_values() -> None:
+    assert frozenset({"v141", "v142", "v143", "v145"}) == KNOWN_TOOLSETS
+
+
+def test_main_toolset_emits_only_known_value(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        "te_builder.vs_detect.detect_installs",
+        lambda: parse_vswhere_output(_FAKE_VSWHERE),
+    )
+    rc = main(["--toolset"])
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert captured.out.strip() in KNOWN_TOOLSETS

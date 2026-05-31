@@ -1,25 +1,15 @@
-"""Detect installed Visual Studio versions and pick a toolset.
+"""Detect Visual Studio installs and pick an MSVC platform toolset.
 
-Wraps Microsoft's `vswhere.exe` (shipped with the VS Installer) to discover
-local installations. Each install is mapped to its MSVC platform toolset:
+VS 15->v141, 16->v142, 17->v143, 18->v145 (Microsoft skipped v144).
 
-    VS 2017 (15.x) -> v141
-    VS 2019 (16.x) -> v142
-    VS 2022 (17.x) -> v143
-    VS 2026 (18.x) -> v145   (v144 is intentionally skipped by Microsoft)
-
-`select_toolset()` is the single decision point the CLI calls. It is
-non-interactive by default; the caller (cli.main) decides whether the
-session is a TTY and only then sets `interactive=True`. CI pipelines that
-do not pass `--msvc-toolset` therefore get the highest detected toolset
-without blocking on a prompt.
-
-Run `python -m te_builder.vs_detect` to print a one-line summary per
-install — wired into `scripts/list-vs.bat`.
+CLI modes:
+- `python -m te_builder.vs_detect`             # listing (wired into list-vs.bat)
+- `python -m te_builder.vs_detect --toolset`   # one-line short name for shell capture
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import os
@@ -37,6 +27,9 @@ _TOOLSET_BY_MAJOR: dict[str, str] = {
     "17": "v143",
     "18": "v145",
 }
+
+# Contract: `--toolset` only emits values in this set.
+KNOWN_TOOLSETS: frozenset[str] = frozenset(_TOOLSET_BY_MAJOR.values())
 
 
 @dataclass(frozen=True)
@@ -168,11 +161,35 @@ def _format_install(install: VsInstall) -> str:
     )
 
 
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="te_builder.vs_detect",
+        description="List Visual Studio installs (default) or print the "
+        "selected MSVC platform toolset short name (--toolset).",
+    )
+    parser.add_argument(
+        "--toolset",
+        action="store_true",
+        help="Print the highest-detected toolset short name to stdout "
+        "(exit 0); empty stdout + exit 1 if none.",
+    )
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Entry for `python -m te_builder.vs_detect` and scripts/list-vs.bat."""
     logging.basicConfig(level=logging.INFO, format="%(levelname).4s %(message)s")
-    del argv  # no flags yet — this is intentionally a zero-arg listing tool
+    args = _build_arg_parser().parse_args(argv)
     installs = detect_installs()
+    if args.toolset:
+        chosen = select_toolset(installs, interactive=False)
+        if chosen is None:
+            return 1
+        if chosen not in KNOWN_TOOLSETS:
+            _logger.error("internal: %r not in KNOWN_TOOLSETS", chosen)
+            return 1
+        sys.stdout.write(chosen + "\n")
+        sys.stdout.flush()
+        return 0
     if not installs:
         sys.stderr.write(
             "No Visual Studio installations detected. "
